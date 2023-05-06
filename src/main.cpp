@@ -1,28 +1,14 @@
 
 
-#include <SFML/Graphics.hpp>
+
 #include "chip8.h"
 
 
 int main(int argc, const char* argv[]) {
 
-    sf::RenderWindow window(sf::VideoMode(400, 400), "CHIP8");
-    sf::CircleShape shape(200.f);
-    shape.setFillColor(sf::Color::Green);
+    auto chip8 = CHIP8::Interpreter();
 
-    while (window.isOpen())
-    {
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
-
-        window.clear();
-        window.draw(shape);
-        window.display();
-    }
+    chip8.run();
 
     /*
     auto inter = CHIP8::Interpreter();

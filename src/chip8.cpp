@@ -35,6 +35,52 @@ namespace CHIP8 {
         m_state.pc = 0x200; // or 0x600 on ETI systems
     }
 
+    void Interpreter::run(){
+        sf::VideoMode mode(SCREEN_WIDTH, SCREEN_HEIGHT);
+        sf::RenderWindow window(mode, "CHIP8");
+
+        m_canvas.create(NATIVE_WIDTH, NATIVE_HEIGHT, sf::Color::Black);
+        m_texture.loadFromImage(m_canvas);
+        m_sprite.setTexture(m_texture, true);
+        m_sprite.setScale(SCREEN_SCALE, SCREEN_SCALE);
+
+        draw_byte(32, 32, 0b10101010);
+
+        while (window.isOpen())
+        {
+            sf::Event event;
+            while (window.pollEvent(event))
+            {
+                if (event.type == sf::Event::Closed)
+                    window.close();
+            }
+
+            window.clear();
+            window.draw(m_sprite);
+            window.display();
+        }
+    }
+
+    void Interpreter::draw_byte(byte_t x, byte_t y, byte_t byte){
+        // draws 8 pixels from X=x to X=x+8, at constant Y=y.
+        for(byte_t i = 0; i != 8; ++i){
+            draw_pixel(x + i, y, (byte >> i) & 1);
+        }
+    }
+
+    void Interpreter::draw_pixel(uint8_t x, uint8_t y, bool black){
+        // Calculate color
+        bool pixel = m_canvas.getPixel(x, y).r > 0;
+        pixel ^= black;
+        auto color = pixel ? sf::Color::Black : sf::Color::White;
+        // Calculate position
+        x %= NATIVE_WIDTH;
+        y %= NATIVE_HEIGHT;
+        // Draw pixel
+        m_canvas.setPixel(x, y, color);
+        m_texture.update(m_canvas);
+    }
+
     void Interpreter::run_instruction(uint16_t code){
         
         // Nibbles
@@ -167,9 +213,27 @@ namespace CHIP8 {
                 m_state.regs[nib3] = static_cast<byte_t>(std::rand() % 0xFF) & low_byte;
                 break;
             // Display sprite
-            case 0xD:
+            case 0xD: {
                 // TO-DO
+                /*
+                The interpreter reads n bytes from memory,
+                starting at the address stored in I.
+                These bytes are then displayed as sprites on screen
+                at coordinates (Vx, Vy).
+                Sprites are XORed onto the existing screen.
+                If this causes any pixels to be erased, VF is set to 1,
+                otherwise it is set to 0.
+                If the sprite is positioned so part of it is outside
+                the coordinates of the display,
+                it wraps around to the opposite side of the screen.
+                */
+                byte_t x = m_state.regs[nib3];
+                byte_t y = m_state.regs[nib2];
+                for(byte_t i = 0; i != nib1; ++i){
+                    byte_t *p = m_state.ram.data() + m_state.Ireg + i;
+                }
                 break;
+            }
             // Skip if key
             case 0xE:
                 // TO-DO
