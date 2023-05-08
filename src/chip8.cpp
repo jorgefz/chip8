@@ -3,8 +3,8 @@
 namespace CHIP8 {
 
 
-    State* Interpreter::get_state(){
-        return &this->m_state;
+    State& Interpreter::get_state(){
+        return this->m_state;
     }
 
     void Interpreter::load_file(std::string filename){
@@ -36,21 +36,26 @@ namespace CHIP8 {
     }
 
     void Interpreter::run(){
+        // Initialise window
         sf::VideoMode mode(SCREEN_WIDTH, SCREEN_HEIGHT);
         sf::RenderWindow window(mode, "CHIP8");
 
+        // Setup program display/canvas
         m_canvas.create(NATIVE_WIDTH, NATIVE_HEIGHT, sf::Color::Black);
         m_texture.loadFromImage(m_canvas);
         m_sprite.setTexture(m_texture, true);
         m_sprite.setScale(SCREEN_SCALE, SCREEN_SCALE);
-
-        draw_byte(32, 32, 0b10101010);
-
-        while (window.isOpen())
-        {
+        clear_canvas();
+        
+        draw_byte(32, 16, CHIP8::HEX_DIGITS[0 + 5*3]);
+        draw_byte(32, 17, CHIP8::HEX_DIGITS[1 + 5*3]);
+        draw_byte(32, 18, CHIP8::HEX_DIGITS[2 + 5*3]);
+        draw_byte(32, 19, CHIP8::HEX_DIGITS[3 + 5*3]);
+        draw_byte(32, 20, CHIP8::HEX_DIGITS[4 + 5*3]);
+        
+        while (window.isOpen()) {
             sf::Event event;
-            while (window.pollEvent(event))
-            {
+            while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed)
                     window.close();
             }
@@ -68,17 +73,28 @@ namespace CHIP8 {
         }
     }
 
-    void Interpreter::draw_pixel(uint8_t x, uint8_t y, bool black){
-        // Calculate color
-        bool pixel = m_canvas.getPixel(x, y).r > 0;
-        pixel ^= black;
-        auto color = pixel ? sf::Color::Black : sf::Color::White;
+    void Interpreter::draw_pixel(uint8_t x, uint8_t y, bool pixel){
         // Calculate position
         x %= NATIVE_WIDTH;
         y %= NATIVE_HEIGHT;
+        // Calculate color
+        pixel ^= (m_canvas.getPixel(x, y).r > 0);
+        auto color = pixel ? sf::Color::Black : sf::Color::White;
+        // Set VF if pixel erased
+        if( (m_canvas.getPixel(x, y).r > 0) && pixel){
+            m_state.regs[0xF] = 1;
+        }
         // Draw pixel
         m_canvas.setPixel(x, y, color);
         m_texture.update(m_canvas);
+    }
+
+    void Interpreter::clear_canvas(){
+        for(int i = 0; i != NATIVE_WIDTH; ++i){
+            for(int j = 0; j != NATIVE_HEIGHT; ++j){
+                m_canvas.setPixel(i, j, sf::Color::White);
+            }
+        }
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -99,15 +115,16 @@ namespace CHIP8 {
             // Misc - general state
             case 0x0:
                 if(code == 0x00E0){
-                    // Clear display
+                    // CLS - clear display
+                    clear_canvas();
                 } else if (code == 0x00EE){
-                    // Return from subroutine
+                    // RET - return from subroutine
                     if(m_state.sp == 0){
                         throw std::runtime_error(
                             "Cannot return from outside a subroutine"
                         );
                     }
-                    m_state.pc = m_state.stack[m_state.sp];
+                    m_state.pc = m_state.stack[m_state.sp-1];
                     m_state.sp--;
                 }
                 break;
@@ -117,13 +134,13 @@ namespace CHIP8 {
                 break;
             // CALL
             case 0x2:
-                if(m_state.sp + 1 == STACK_SIZE){
+                if(m_state.sp == STACK_SIZE){
                     throw std::runtime_error(
                         "Stack overflow. Too many subroutine calls!"
                     );
                 }
                 m_state.sp++;
-                m_state.stack[m_state.sp] = m_state.pc;
+                m_state.stack[m_state.sp-1] = m_state.pc;
                 m_state.pc = addr;
                 break;
             // Skip if
@@ -214,23 +231,12 @@ namespace CHIP8 {
                 break;
             // Display sprite
             case 0xD: {
-                // TO-DO
-                /*
-                The interpreter reads n bytes from memory,
-                starting at the address stored in I.
-                These bytes are then displayed as sprites on screen
-                at coordinates (Vx, Vy).
-                Sprites are XORed onto the existing screen.
-                If this causes any pixels to be erased, VF is set to 1,
-                otherwise it is set to 0.
-                If the sprite is positioned so part of it is outside
-                the coordinates of the display,
-                it wraps around to the opposite side of the screen.
-                */
                 byte_t x = m_state.regs[nib3];
                 byte_t y = m_state.regs[nib2];
+                m_state.regs[0xF] = 0;
                 for(byte_t i = 0; i != nib1; ++i){
-                    byte_t *p = m_state.ram.data() + m_state.Ireg + i;
+                    byte_t sprite_line = m_state.ram[m_state.Ireg + i];
+                    draw_byte(x, y + i, sprite_line);
                 }
                 break;
             }
@@ -241,37 +247,38 @@ namespace CHIP8 {
             // Misc
             case 0xF:
                 switch(low_byte){
-                    case 0x07:
+                    case 0x07: // Get DT
                         m_state.regs[nib3] = m_state.DTreg;
                         break;
                     case 0x0A:
                         // Halt execution until key press
                         // TODO
                         break;
-                    case 0x15:
+                    case 0x15: // Set DT
                         m_state.DTreg = m_state.regs[nib3];
                         break;
-                    case 0x18:
+                    case 0x18: // Set ST
                         m_state.STreg = m_state.regs[nib3];
                         break;
-                    case 0x1E:
+                    case 0x1E: // Increase I
                         m_state.Ireg += m_state.regs[nib3];
                         break;
                     case 0x29:
-                        // Get location of sprite
+                        // Get location of font sprite
+                        // representing value at nib3
                         // TO-DO
                         break;
-                    case 0x33:
+                    case 0x33: // Store BCD representation
                         m_state.ram[m_state.Ireg]   = (m_state.regs[nib3]/100) % 10;
                         m_state.ram[m_state.Ireg+1] = (m_state.regs[nib3]/10)  % 10;
                         m_state.ram[m_state.Ireg+2] =  m_state.regs[nib3]      % 10;
                         break;
-                    case 0x55:
+                    case 0x55: // Save registers to RAM
                         for(uint8_t i = 0x0; i != 0xF+1; ++i){
                             m_state.ram[m_state.Ireg + i] = m_state.regs[i];
                         }
                         break;
-                    case 0x65:
+                    case 0x65: // Load registers from RAM
                         for(uint8_t i = 0x0; i != 0xF+1; ++i){
                             m_state.regs[i] = m_state.ram[m_state.Ireg + i];
                         }

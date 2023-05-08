@@ -11,5 +11,8 @@ namespace CHIP8 {
         ram.fill(0);
         stack.fill(0);
         regs.fill(0);
+
+        // Copy hex digits
+        std::copy_n(HEX_DIGITS.begin(), HEX_ALPHABET_SIZE, ram.begin());
     }
 }

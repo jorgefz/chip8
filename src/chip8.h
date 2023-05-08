@@ -38,7 +38,7 @@ namespace CHIP8 {
         static constexpr int SCREEN_WIDTH  = NATIVE_WIDTH  * SCREEN_SCALE;
         static constexpr int SCREEN_HEIGHT = NATIVE_HEIGHT * SCREEN_SCALE;
 
-        State* get_state();
+        State& get_state();
 
         /* Loads a CHIP8 program into memory from disk */
         void load_file(std::string filename);
@@ -52,7 +52,7 @@ namespace CHIP8 {
         /* Executes the main loop and runs the loaded program */
         void run();
 
-        /* Draws pixels encoded as bits */
+        /* Draws 8 monochrome pixels encoded as bits in a byte  */
         void draw_byte(byte_t x, byte_t y, byte_t byte);
 
         /*
@@ -60,7 +60,9 @@ namespace CHIP8 {
         The pixel is XOR'd with the screen pixel at that location.
         If the location is outside the canvas, it wraps around.
         */
-        void draw_pixel(byte_t x, byte_t y, bool white);
+        void draw_pixel(byte_t x, byte_t y, bool pixel);
+
+        void clear_canvas();
 
         /* Executes an opcode on the current state */
         void run_instruction(uint16_t code);
