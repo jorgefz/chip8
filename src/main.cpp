@@ -235,8 +235,9 @@ void test_instr_LD(){
 /*
 7xkk - ADD Vx, byte
 Set Vx = Vx + kk.
-Adds the value kk to the value of register Vx, then stores the result in Vx.
+Adds the value kk to the value of register Vx, then stores the result in Vx. 
 */
+/// TODO: check if carry flag VF should be set on overflow.
 void test_instr_ADD(){
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
@@ -250,7 +251,7 @@ void test_instr_ADD(){
     // Register overflow
     state.regs[0xb] = 0x1;
     prog.run_instruction(0x7bff);
-    if(state.regs[0xb] != 0x01){
+    if(state.regs[0xb] != 0x0){
         throw std::runtime_error("Register did not overflow on ADD");
     }
 }
@@ -259,6 +260,244 @@ void test_instr_ADD(){
 8xy0 - LD Vx, Vy
 Set Vx = Vy.
 Stores the value of register Vy in register Vx.
+*/
+void test_instr_LD_regs(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xb] = 0xff;
+    state.regs[0xa] = 0x00;
+    prog.run_instruction(0x8ab0);
+
+    if(state.regs[0xa] != 0xff){
+        throw std::runtime_error("Register not updated on LD-regs");
+    }
+}
+
+/*
+8xy1 - OR Vx, Vy
+Set Vx = Vx OR Vy.
+Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx.
+*/
+void test_instr_OR(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xaa;
+    state.regs[0xb] = 0xbb;
+    prog.run_instruction(0x8ab1);
+    if(state.regs[0xa] != (0xaa | 0xbb)){
+        throw std::runtime_error("Register not updated on OR");
+    }
+}
+
+/*
+8xy2 - AND Vx, Vy
+Set Vx = Vx AND Vy.
+Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
+*/
+void test_instr_AND(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xaa;
+    state.regs[0xb] = 0xbb;
+    prog.run_instruction(0x8ab2);
+    if(state.regs[0xa] != (0xaa & 0xbb)){
+        throw std::runtime_error("Register not updated on AND");
+    }
+}
+
+/*
+8xy3 - XOR Vx, Vy
+Set Vx = Vx XOR Vy.
+Performs a bitwise exclusive OR on the values of Vx and Vy,
+then stores the result in Vx.
+*/
+void test_instr_XOR(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xaa;
+    state.regs[0xb] = 0xbb;
+    prog.run_instruction(0x8ab3);
+    if(state.regs[0xa] != (0xaa ^ 0xbb)){
+        throw std::runtime_error("Register not updated on XOR");
+    }
+}
+
+
+/*
+8xy4 - ADD Vx, Vy
+Set Vx = Vx + Vy, set VF = carry.
+The values of Vx and Vy are added together.
+If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0.
+Only the lowest 8 bits of the result are kept, and stored in Vx.
+*/
+void test_instr_ADD_regs(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0x22;
+    state.regs[0xb] = 0x33;
+    prog.run_instruction(0x8ab4);
+    if(state.regs[0xa] != (0x22 + 0x33)){
+        throw std::runtime_error("Register not updated on ADD-regs");
+    }
+    if(state.regs[0xF] != 0x0){
+        throw std::runtime_error("Carry flag set when no overflow on ADD-regs");
+    }
+
+    // Register overflow
+    state.regs[0xa] = 0x01;
+    state.regs[0xb] = 0xff;
+    prog.run_instruction(0x8ab4);
+    if(state.regs[0xa] != 0x0){
+        throw std::runtime_error("Register did not overflow on ADD-regs");
+    }
+    if(state.regs[0xF] != 0x1){
+        throw std::runtime_error("Carry flag not set on overflow on ADD-regs");
+    }
+}
+
+/*
+8xy5 - SUB Vx, Vy
+Set Vx = Vx - Vy, set VF = NOT borrow.
+If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+*/
+void test_instr_SUB(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xaa;
+    state.regs[0xb] = 0x22;
+    prog.run_instruction(0x8ab5);
+    if(state.regs[0xa] != (0xaa - 0x22)){
+        throw std::runtime_error("Register not updated on SUB");
+    }
+    if(state.regs[0xF] != 0x1){
+        throw std::runtime_error("No-borrow flag unset when no borrow on SUB");
+    }
+
+    // Register overflow
+    state.regs[0xa] = 0x00;
+    state.regs[0xb] = 0x01;
+    prog.run_instruction(0x8ab5);
+    if(state.regs[0xa] != 0xff){
+        throw std::runtime_error("Register did not underflow on SUB");
+    }
+    if(state.regs[0xF] != 0x0){
+        throw std::runtime_error("No-borrow flag set when borrow on SUB");
+    }
+}
+
+/*
+8xy6 - SHR Vx {, Vy}
+Set Vx = Vx SHR 1.
+If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0.
+Then Vx is divided by 2 (right-shifted).
+Originally, this right-shifted the value of Vy and stored it on Vx.
+*/
+void test_instr_SHR(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0x10;
+    prog.run_instruction(0x8a06);
+    if(state.regs[0xa] != (0x10 >> 1)){
+        throw std::runtime_error("Register did not update on SHR");
+    }
+    if(state.regs[0xF] != 0x0){
+        throw std::runtime_error("Carry flag VF set when no carry on SHR");
+    }
+
+    state.regs[0xa] = 0x11;
+    prog.run_instruction(0x8a06);
+    if(state.regs[0xa] != (0x11 >> 1)){
+        throw std::runtime_error("Register did not update on SHR");
+    }
+    if(state.regs[0xF] != 0x1){
+        throw std::runtime_error("Carry flag VF unset when carry on SHR");
+    }
+}
+
+
+/*
+8xy7 - SUBN Vx, Vy
+Set Vx = Vy - Vx, set VF = NOT borrow.
+If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+*/
+void test_instr_SUBN(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xaa;
+    state.regs[0xb] = 0xbb;
+    prog.run_instruction(0x8ab7);
+    if(state.regs[0xa] != (0xbb - 0xaa)){
+        throw std::runtime_error("Register not updated on SUBN");
+    }
+    if(state.regs[0xF] != 0x1){
+        throw std::runtime_error("No-borrow flag unset when no borrow on SUBN");
+    }
+
+    // Register overflow
+    state.regs[0xa] = 0x01;
+    state.regs[0xb] = 0x00;
+    prog.run_instruction(0x8ab7);
+    if(state.regs[0xa] != 0xff){
+        throw std::runtime_error("Register did not underflow on SUBN");
+    }
+    if(state.regs[0xF] != 0x0){
+        throw std::runtime_error("No-borrow flag set when borrow on SUBN");
+    }
+}
+
+
+/*
+8xyE - SHL Vx {, Vy}
+Set Vx = Vx SHL 1.
+If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0.
+Then Vx is multiplied by 2 (left-shifted).
+Originally, this left-shifted the value of Vy and stored it on Vx.
+*/
+void test_instr_SHL(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0x01;
+    prog.run_instruction(0x8a0E);
+    if(state.regs[0xa] != (0x01 << 1)){
+        throw std::runtime_error("Register did not update on SHL");
+    }
+    if(state.regs[0xF] != 0x0){
+        throw std::runtime_error("Carry flag VF set when no carry on SHL");
+    }
+
+    state.regs[0xa] = 0x80;
+    prog.run_instruction(0x8a0E);
+    if(state.regs[0xa] != CHIP8::byte_t(0x80 << 1)){
+        throw std::runtime_error("Register did not update on carry on SHL");
+    }
+    if(state.regs[0xF] != 0x1){
+        throw std::runtime_error("Carry flag VF unset when carry on SHL");
+    }
+}
+
+
+/*
+9xy0 - SNE Vx, Vy
+Skip next instruction if Vx != Vy.
+The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
 */
 
 
@@ -272,7 +511,16 @@ int main(int argc, const char* argv[]) {
     test_instr_SNE();
     test_instr_SE_regs();
     test_instr_LD();
-    
+    test_instr_LD_regs();
+    test_instr_ADD();
+    test_instr_OR();
+    test_instr_AND();
+    test_instr_XOR();
+    test_instr_ADD_regs();
+    test_instr_SUB();
+    test_instr_SHR();
+    test_instr_SUBN();
+    test_instr_SHL();
 
     // auto chip8 = CHIP8::Interpreter();
     // chip8.run();

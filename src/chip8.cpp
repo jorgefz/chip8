@@ -173,7 +173,7 @@ namespace CHIP8 {
                 }
                 m_state.pc += 2;
                 break;
-            // Set register to byte
+            // LD - Set register to byte
             case 0x6:
                 m_state.regs[nib3] = low_byte;
                 break;
@@ -197,14 +197,12 @@ namespace CHIP8 {
                         m_state.regs[nib3] ^= m_state.regs[nib2];
                         break;
                     case 0x4: // ADD 
-                        m_state.regs[0xF] = m_state.regs[nib3] + m_state.regs[nib2] > 0xFF;
+                        m_state.regs[0xF] = (m_state.regs[nib3] + m_state.regs[nib2]) > 0xFF;
                         m_state.regs[nib3] += m_state.regs[nib2];
                         break;
                     case 0x5: // SUB
-                        // Note: flag is set if no underflow
-                        m_state.regs[0xF] = !(
-                            m_state.regs[nib3] - m_state.regs[nib2] > m_state.regs[nib3]
-                        );
+                        // Note: VF flag is set if no underflow
+                        m_state.regs[0xF] = !(m_state.regs[nib2] > m_state.regs[nib3]);
                         m_state.regs[nib3] -= m_state.regs[nib2];
                         break;
                     case 0x6: // SHR
@@ -216,7 +214,7 @@ namespace CHIP8 {
                         m_state.regs[nib3] = m_state.regs[nib2] - m_state.regs[nib3];
                         break;
                     case 0xE: // SHL
-                        m_state.regs[0xF] = !!(m_state.regs[nib3] & (0x2000));
+                        m_state.regs[0xF] = (m_state.regs[nib3] & (1 << 7)) != 0x0;
                         m_state.regs[nib3] <<= 1;  // *= 2;
                         break;
                     default:
