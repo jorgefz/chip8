@@ -20,6 +20,8 @@ Each step:
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <random>
+#include <ctime>
 
 #include <SFML/Graphics.hpp>
 #include "state.h"
@@ -31,6 +33,11 @@ namespace CHIP8 {
         sf::Image m_canvas;
         sf::Texture m_texture;
         sf::Sprite m_sprite;
+        sf::Clock m_clock;
+        std::default_random_engine m_rng;
+        double m_timer;
+        double m_timer_freq; // Hz
+        
     public:
         static constexpr int NATIVE_WIDTH  = 64;
         static constexpr int NATIVE_HEIGHT = 32;
@@ -38,7 +45,11 @@ namespace CHIP8 {
         static constexpr int SCREEN_WIDTH  = NATIVE_WIDTH  * SCREEN_SCALE;
         static constexpr int SCREEN_HEIGHT = NATIVE_HEIGHT * SCREEN_SCALE;
 
+        Interpreter();
+
+        /* Retrieve memory of virtual machine */
         State& get_state();
+        sf::Image& get_canvas() { return m_canvas; }
 
         /* Loads a CHIP8 program into memory from disk */
         void load_file(std::string filename);
@@ -62,7 +73,14 @@ namespace CHIP8 {
         */
         void draw_pixel(byte_t x, byte_t y, bool pixel);
 
+        /* Sets all the canvas pixels to white */
         void clear_canvas();
+
+        /* Returns a random integer between 0 and 255 */
+        byte_t random_byte();
+
+        /* Advance Delay and Sound timers at a rate of 60 Hz (by default) */
+        void update_timers(double dt);
 
         /* Executes an opcode on the current state */
         void run_instruction(uint16_t code);

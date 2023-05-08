@@ -2,6 +2,14 @@
 
 namespace CHIP8 {
 
+    Interpreter::Interpreter(){
+        m_state.reset();
+        // Set program counter to beginning of program
+        m_state.pc = 0x200; // or 0x600 on ETI systems
+        m_rng.seed(std::time(nullptr));
+        m_timer = 0.0;
+        m_timer_freq = 60.0; // Hz
+    }
 
     State& Interpreter::get_state(){
         return this->m_state;
@@ -20,9 +28,6 @@ namespace CHIP8 {
         );
 
         input.close();
-        
-        // Set program counter to beginning of program
-        m_state.pc = 0x200; // or 0x600 on ETI systems
     }
 
     void Interpreter::load_bytes(std::vector<byte_t> program){
@@ -30,9 +35,6 @@ namespace CHIP8 {
             throw std::runtime_error("Program is too large");
         }
         std::copy_n(program.begin(), program.size(), m_state.ram.begin() + RAM_PROG_OFFSET);
-        
-        // Set program counter to beginning of program
-        m_state.pc = 0x200; // or 0x600 on ETI systems
     }
 
     void Interpreter::run(){
@@ -46,30 +48,43 @@ namespace CHIP8 {
         m_sprite.setTexture(m_texture, true);
         m_sprite.setScale(SCREEN_SCALE, SCREEN_SCALE);
         clear_canvas();
-        
-        draw_byte(32, 16, CHIP8::HEX_DIGITS[0 + 5*3]);
-        draw_byte(32, 17, CHIP8::HEX_DIGITS[1 + 5*3]);
-        draw_byte(32, 18, CHIP8::HEX_DIGITS[2 + 5*3]);
-        draw_byte(32, 19, CHIP8::HEX_DIGITS[3 + 5*3]);
-        draw_byte(32, 20, CHIP8::HEX_DIGITS[4 + 5*3]);
-        
+
+        for(int i = 0; i != 5; ++i){
+             draw_byte(32, 16+i, CHIP8::HEX_DIGITS[i + 5*0x2]);
+        }
+
+        double dt;
+
         while (window.isOpen()) {
+            dt = m_clock.restart().asMilliseconds();
+            update_timers(dt);
+
             sf::Event event;
             while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed)
                     window.close();
             }
-
+            
             window.clear();
+            m_texture.update(m_canvas);
             window.draw(m_sprite);
             window.display();
+
+            if(m_state.pc == CHIP8::RAM_SIZE){
+                continue;
+            }
+            uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
+            // std::cout << std::hex <<"0x"<< inter.get_state().pc << " [0x" << code << "]" << std::endl;
+            run_instruction(code);
+            m_state.pc += 2;
         }
     }
 
     void Interpreter::draw_byte(byte_t x, byte_t y, byte_t byte){
         // draws 8 pixels from X=x to X=x+8, at constant Y=y.
+        /// TODO: ensure draw order for x-coordinate is correct
         for(byte_t i = 0; i != 8; ++i){
-            draw_pixel(x + i, y, (byte >> i) & 1);
+            draw_pixel(x + 8-i, y, byte & (1 << i));
         }
     }
 
@@ -79,21 +94,41 @@ namespace CHIP8 {
         y %= NATIVE_HEIGHT;
         // Calculate color
         pixel ^= (m_canvas.getPixel(x, y).r > 0);
-        auto color = pixel ? sf::Color::Black : sf::Color::White;
+        auto color = pixel ? sf::Color::White : sf::Color::Black;
         // Set VF if pixel erased
         if( (m_canvas.getPixel(x, y).r > 0) && pixel){
             m_state.regs[0xF] = 1;
         }
         // Draw pixel
         m_canvas.setPixel(x, y, color);
-        m_texture.update(m_canvas);
     }
 
     void Interpreter::clear_canvas(){
         for(int i = 0; i != NATIVE_WIDTH; ++i){
             for(int j = 0; j != NATIVE_HEIGHT; ++j){
-                m_canvas.setPixel(i, j, sf::Color::White);
+                m_canvas.setPixel(i, j, sf::Color::Black);
             }
+        }
+    }
+
+    /// TODO: set up random number generator
+    byte_t Interpreter::random_byte(){
+        std::uniform_int_distribution<byte_t> distribution(0x0, 0xFF);
+        return distribution(m_rng);
+    }
+
+    void Interpreter::update_timers(double dt){
+        m_timer += dt;
+        if(m_timer < 1000.0/m_timer_freq){
+            return;
+        }
+        m_timer = 0.0;
+        if(m_state.DTreg != 0x0){
+            m_state.DTreg -= 1;
+        }
+
+        if(m_state.STreg != 0x0){
+            m_state.STreg -= 1;
         }
     }
 
@@ -148,7 +183,7 @@ namespace CHIP8 {
                 if(m_state.regs[nib3] != low_byte){
                     break;
                 }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
                     throw std::runtime_error("RAM overflow");
                 }
                 m_state.pc += 2;
@@ -158,7 +193,7 @@ namespace CHIP8 {
                 if(m_state.regs[nib3] == low_byte){
                     break;
                 }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
                     throw std::runtime_error("RAM overflow");
                 }
                 m_state.pc += 2;
@@ -168,7 +203,7 @@ namespace CHIP8 {
                 if(m_state.regs[nib2] != m_state.regs[nib3]){
                     break;
                 }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
                     throw std::runtime_error("RAM overflow");
                 }
                 m_state.pc += 2;
@@ -223,9 +258,13 @@ namespace CHIP8 {
                 break;
             // Skip if registers not equal
             case 0x9:
-                if(m_state.regs[nib2] != m_state.regs[nib3]){
-                    m_state.pc += 2;
+                if(m_state.regs[nib2] == m_state.regs[nib3]){
+                    break;
                 }
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
+                    throw std::runtime_error("RAM overflow");
+                }
+                m_state.pc += 2;
                 break;
             // Set address pointer
             case 0xA:
@@ -233,11 +272,14 @@ namespace CHIP8 {
                 break;
             // JMP w/ offset
             case 0xB:
+                if(addr + m_state.regs[0x0] > 0xFFF){
+                    throw std::runtime_error("RAM overflow");
+                }
                 m_state.pc = addr + m_state.regs[0x0];
                 break;
             // RAND & reg
             case 0xC:
-                m_state.regs[nib3] = static_cast<byte_t>(std::rand() % 0xFF) & low_byte;
+                m_state.regs[nib3] = random_byte() & low_byte;
                 break;
             // Display sprite
             case 0xD: {
@@ -247,6 +289,7 @@ namespace CHIP8 {
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
                     draw_byte(x, y + i, sprite_line);
+                    /// TODO: ensure y-coordinate draw direction is correct
                 }
                 break;
             }
@@ -276,7 +319,7 @@ namespace CHIP8 {
                     case 0x29:
                         // Get location of font sprite
                         // representing value at nib3
-                        // TO-DO
+                        m_state.Ireg = m_state.regs[nib3] * 5;
                         break;
                     case 0x33: // Store BCD representation
                         m_state.ram[m_state.Ireg]   = (m_state.regs[nib3]/100) % 10;
@@ -284,12 +327,12 @@ namespace CHIP8 {
                         m_state.ram[m_state.Ireg+2] =  m_state.regs[nib3]      % 10;
                         break;
                     case 0x55: // Save registers to RAM
-                        for(uint8_t i = 0x0; i != 0xF+1; ++i){
+                        for(byte_t i = 0x0; i != nib3 + 1; ++i){
                             m_state.ram[m_state.Ireg + i] = m_state.regs[i];
                         }
                         break;
                     case 0x65: // Load registers from RAM
-                        for(uint8_t i = 0x0; i != 0xF+1; ++i){
+                        for(byte_t i = 0x0; i != 0xF+1; ++i){
                             m_state.regs[i] = m_state.ram[m_state.Ireg + i];
                         }
                         break;
