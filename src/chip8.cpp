@@ -143,23 +143,35 @@ namespace CHIP8 {
                 m_state.stack[m_state.sp-1] = m_state.pc;
                 m_state.pc = addr;
                 break;
-            // Skip if
+            // SE (skip if)
             case 0x3:
-                if(m_state.regs[nib3] == low_byte){
-                    m_state.pc += 2;
-                }
-                break;
-            // Skip if not
-            case 0x4:
                 if(m_state.regs[nib3] != low_byte){
-                    m_state.pc += 2;
+                    break;
                 }
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                    throw std::runtime_error("RAM overflow");
+                }
+                m_state.pc += 2;
                 break;
-            // Skip if registers are equal
-            case 0x5:
-                if(m_state.regs[nib2] == m_state.regs[nib3]){
-                    m_state.pc += 2;
+            // SNE (skip if not)
+            case 0x4:
+                if(m_state.regs[nib3] == low_byte){
+                    break;
                 }
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                    throw std::runtime_error("RAM overflow");
+                }
+                m_state.pc += 2;
+                break;
+            // SE-regs (skip if registers are equal)
+            case 0x5:
+                if(m_state.regs[nib2] != m_state.regs[nib3]){
+                    break;
+                }
+                if(m_state.pc + 2 >= CHIP8::RAM_SIZE - 1){
+                    throw std::runtime_error("RAM overflow");
+                }
+                m_state.pc += 2;
                 break;
             // Set register to byte
             case 0x6:

@@ -34,7 +34,7 @@ void test_state_reset(){
 }
 
 /*
-0x00EE - RET
+00EE - RET
 The interpreter sets the program counter to
 the address at the top of the stack,
 then subtracts 1 from the stack pointer.
@@ -65,7 +65,7 @@ void test_instr_RET(){
 }
 
 /*
-0x1nnn - JMP nnn
+1nnn - JMP nnn
 The interpreter sets the program counter to nnn.
 
 No need for bounds checking because 0xNNN can only store
@@ -89,7 +89,7 @@ void test_instr_JMP(){
 }
 
 /*
-0x2nnn - CALL nnn
+2nnn - CALL nnn
 The interpreter increments the stack pointer,
 then puts the current PC on the top of the stack.
 The PC is then set to nnn.
@@ -115,6 +115,152 @@ void test_instr_CALL(){
     if(!exception_thrown) throw std::runtime_error("Exception not thrown on stack overflow");
 }
 
+/*
+3xkk - SE Vx, kk
+The interpreter compares register Vx to kk,
+and if they are equal, increments the program counter by 2.
+Here, we need to check for RAM overflow.
+*/
+void test_instr_SE(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xbc;
+    prog.run_instruction(0x3abc);
+    if(state.pc != 2) throw std::runtime_error("Program counter not updated when it should on SE");
+    
+    state.pc = 0;
+    prog.run_instruction(0x3abc + 1);
+    if(state.pc > 0) throw std::runtime_error("Program counter updated when it shouldn't on SE");
+
+    // RAM overflow
+    state.reset();
+    state.pc = 0xFFF;
+    bool exception_thrown = true;
+    try {
+        prog.run_instruction(0x3000);
+        exception_thrown = false;
+    } catch (std::exception& e) { }
+    if(!exception_thrown || state.pc > 0xFFF){
+        throw std::runtime_error("RAM overflow exception not thrown on SE");
+    }
+}
+
+/*
+4xkk - SNE Vx, byte
+The interpreter compares register Vx to kk, and if they are not equal,
+increments the program counter by 2.
+*/
+void test_instr_SNE(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xbc;
+    prog.run_instruction(0x4abc);
+    if(state.pc > 0) throw std::runtime_error("Program counter updated when it shouldn't on SNE");
+    
+    state.pc = 0;
+    prog.run_instruction(0x4abc + 1);
+    if(state.pc != 2) throw std::runtime_error("Program counter not updated when it should on SNE");
+
+    // RAM overflow
+    state.reset();
+    state.pc = 0xFFF;
+    bool exception_thrown = true;
+    try {
+        prog.run_instruction(0x3000);
+        exception_thrown = false;
+    } catch (std::exception& e) { }
+    if(!exception_thrown || state.pc > 0xFFF){
+        throw std::runtime_error("RAM overflow exception not thrown on SNE");
+    }
+}
+
+
+/*
+5xy0 - SE Vx, Vy
+Skip next instruction if Vx = Vy.
+
+The interpreter compares register Vx to register Vy,
+and if they are equal, increments the program counter by 2.
+*/
+void test_instr_SE_regs(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    state.regs[0xa] = 0xcc;
+    state.regs[0xb] = 0xcc;
+    prog.run_instruction(0x5ab0);
+    if(state.pc != 2) throw std::runtime_error("Program counter not updated when it should on SE-regs");
+    
+    state.pc = 0;
+    state.regs[0xa] = 0x00;
+    state.regs[0xb] = 0x01;
+    prog.run_instruction(0x5ab0);
+    if(state.pc > 0) throw std::runtime_error("Program counter updated when it shouldn't on SE-regs");
+
+    // RAM overflow
+    state.reset();
+    state.pc = 0xFFF;
+    state.regs[0] = 0;
+    bool exception_thrown = true;
+    try {
+        prog.run_instruction(0x5000);
+        exception_thrown = false;
+    } catch (std::exception& e) { }
+    if(!exception_thrown || state.pc > 0xFFF){
+        throw std::runtime_error("RAM overflow exception not thrown on SE");
+    }
+}
+
+
+/*
+6xkk - LD Vx, byte
+The interpreter puts the value kk into register Vx.
+*/
+void test_instr_LD(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    prog.run_instruction(0x6abb);
+    if(state.regs[0xa] != 0xbb){
+        throw std::runtime_error("Register not updated on LD");
+    }
+}
+
+/*
+7xkk - ADD Vx, byte
+Set Vx = Vx + kk.
+Adds the value kk to the value of register Vx, then stores the result in Vx.
+*/
+void test_instr_ADD(){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    state.reset();
+
+    prog.run_instruction(0x7abb);
+    if(state.regs[0xa] != 0xbb){
+        throw std::runtime_error("Register not updated on ADD");
+    }
+
+    // Register overflow
+    state.regs[0xb] = 0x1;
+    prog.run_instruction(0x7bff);
+    if(state.regs[0xb] != 0x01){
+        throw std::runtime_error("Register did not overflow on ADD");
+    }
+}
+
+/*
+8xy0 - LD Vx, Vy
+Set Vx = Vy.
+Stores the value of register Vy in register Vx.
+*/
+
 
 int main(int argc, const char* argv[]) {
 
@@ -122,6 +268,10 @@ int main(int argc, const char* argv[]) {
     test_instr_RET();
     test_instr_JMP();
     test_instr_CALL();
+    test_instr_SE();
+    test_instr_SNE();
+    test_instr_SE_regs();
+    test_instr_LD();
     
 
     // auto chip8 = CHIP8::Interpreter();
