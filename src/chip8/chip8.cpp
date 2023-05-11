@@ -9,6 +9,7 @@ namespace CHIP8 {
         m_rng.seed(std::time(nullptr));
         m_timer = 0.0;
         m_timer_freq = 60.0; // Hz
+        m_halt_until_key = false;
     }
 
     State& Interpreter::get_state(){
@@ -49,20 +50,23 @@ namespace CHIP8 {
         m_sprite.setScale(SCREEN_SCALE, SCREEN_SCALE);
         clear_canvas();
 
-        for(int i = 0; i != 5; ++i){
-             draw_byte(32, 16+i, CHIP8::HEX_DIGITS[i + 5*0x2]);
-        }
-
         double dt;
-
         while (window.isOpen()) {
             dt = m_clock.restart().asMilliseconds();
             update_timers(dt);
 
             sf::Event event;
             while (window.pollEvent(event)) {
-                if (event.type == sf::Event::Closed)
-                    window.close();
+                switch(event.type){
+                    case sf::Event::Closed:
+                        window.close();
+                        break;
+                    case sf::Event::KeyPressed:
+                        if(m_halt_until_key){
+                            check_halt_key(event.key.code);
+                        }
+                        break;
+                }
             }
             
             window.clear();
@@ -73,8 +77,13 @@ namespace CHIP8 {
             if(m_state.pc == CHIP8::RAM_SIZE){
                 continue;
             }
+
+            if(m_halt_until_key){
+                std::cout << "Halted " << std::endl;
+                continue;
+            }
+
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
-            // std::cout << std::hex <<"0x"<< inter.get_state().pc << " [0x" << code << "]" << std::endl;
             run_instruction(code);
             m_state.pc += 2;
         }
@@ -130,6 +139,19 @@ namespace CHIP8 {
         if(m_state.STreg != 0x0){
             m_state.STreg -= 1;
         }
+    }
+
+    void Interpreter::check_halt_key(sf::Keyboard::Key keycode){
+        const sf::Keyboard::Key* key = std::find(
+            key_bindings.begin(),
+            key_bindings.end(),
+            keycode
+        );
+        if (key == key_bindings.end()){
+            return;
+        }
+        m_state.regs[m_reg_store_key] = static_cast<byte_t>(std::distance(key_bindings.begin(), key));
+        m_halt_until_key = false;
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -295,7 +317,28 @@ namespace CHIP8 {
             }
             // Skip if key
             case 0xE:
-                // TO-DO
+                switch(low_byte){
+                    case 0x9E: // Skip if key pressed
+                        if(!sf::Keyboard::isKeyPressed(key_bindings[nib3])){
+                            break;
+                        }
+                        if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
+                            throw std::runtime_error("RAM overflow");
+                        }
+                        m_state.pc += 2;
+                        break;
+                    case 0xA1: // Skip if key not pressed
+                        if(sf::Keyboard::isKeyPressed(key_bindings[nib3])){
+                            break;
+                        }
+                        if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
+                            throw std::runtime_error("RAM overflow");
+                        }
+                        m_state.pc += 2;
+                        break;
+                    default:
+                        break;
+                }
                 break;
             // Misc
             case 0xF:
@@ -303,9 +346,9 @@ namespace CHIP8 {
                     case 0x07: // Get DT
                         m_state.regs[nib3] = m_state.DTreg;
                         break;
-                    case 0x0A:
-                        // Halt execution until key press
-                        // TODO
+                    case 0x0A: // Halt execution until key press
+                        m_halt_until_key = true;
+                        m_reg_store_key = nib3;
                         break;
                     case 0x15: // Set DT
                         m_state.DTreg = m_state.regs[nib3];
@@ -319,7 +362,7 @@ namespace CHIP8 {
                     case 0x29:
                         // Get location of font sprite
                         // representing value at nib3
-                        m_state.Ireg = m_state.regs[nib3] * 5;
+                        m_state.Ireg = m_state.regs[nib3] * 5; // Each hex sprite is 5 bytes long
                         break;
                     case 0x33: // Store BCD representation
                         m_state.ram[m_state.Ireg]   = (m_state.regs[nib3]/100) % 10;
@@ -341,6 +384,8 @@ namespace CHIP8 {
                 }
                 break;
             default:
+                std::cout << "Invalid instruction 0x" << std::hex << code << std::endl;
+                std::runtime_error(" ");
                 break;
         }
     }

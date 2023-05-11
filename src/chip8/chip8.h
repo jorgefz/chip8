@@ -37,13 +37,34 @@ namespace CHIP8 {
         std::default_random_engine m_rng;
         double m_timer;
         double m_timer_freq; // Hz
-        
+        bool m_halt_until_key;
+        byte_t m_reg_store_key;
+    
     public:
         static constexpr int NATIVE_WIDTH  = 64;
         static constexpr int NATIVE_HEIGHT = 32;
         static constexpr int SCREEN_SCALE  = 16;
         static constexpr int SCREEN_WIDTH  = NATIVE_WIDTH  * SCREEN_SCALE;
         static constexpr int SCREEN_HEIGHT = NATIVE_HEIGHT * SCREEN_SCALE;
+
+        static constexpr std::array<sf::Keyboard::Key, 0x10> key_bindings = {
+            /* 0 */ sf::Keyboard::Key::Num0,
+            /* 1 */ sf::Keyboard::Key::Num1,
+            /* 2 */ sf::Keyboard::Key::Num2,
+            /* 3 */ sf::Keyboard::Key::Num3,
+            /* 4 */ sf::Keyboard::Key::Num4,
+            /* 5 */ sf::Keyboard::Key::Num5,
+            /* 6 */ sf::Keyboard::Key::Num6,
+            /* 7 */ sf::Keyboard::Key::Num7,
+            /* 8 */ sf::Keyboard::Key::Num8,
+            /* 9 */ sf::Keyboard::Key::Num9,
+            /* A */ sf::Keyboard::Key::A,
+            /* B */ sf::Keyboard::Key::B,
+            /* C */ sf::Keyboard::Key::C,
+            /* D */ sf::Keyboard::Key::D,
+            /* E */ sf::Keyboard::Key::E,
+            /* F */ sf::Keyboard::Key::F,
+        };
 
         Interpreter();
 
@@ -81,6 +102,8 @@ namespace CHIP8 {
 
         /* Advance Delay and Sound timers at a rate of 60 Hz (by default) */
         void update_timers(double dt);
+
+        void check_halt_key(sf::Keyboard::Key keycode);
 
         /* Executes an opcode on the current state */
         void run_instruction(uint16_t code);
