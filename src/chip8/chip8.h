@@ -28,6 +28,25 @@ Each step:
 
 namespace CHIP8 {
 
+    const std::unordered_map<byte_t, sf::Keyboard::Key> key_bindings = {
+        {0x0, sf::Keyboard::Key::Num0},
+        {0x1, sf::Keyboard::Key::Num1},
+        {0x2, sf::Keyboard::Key::Num2},
+        {0x3, sf::Keyboard::Key::Num3},
+        {0x4, sf::Keyboard::Key::Num4},
+        {0x5, sf::Keyboard::Key::Num5},
+        {0x6, sf::Keyboard::Key::Num6},
+        {0x7, sf::Keyboard::Key::Num7},
+        {0x8, sf::Keyboard::Key::Num8},
+        {0x9, sf::Keyboard::Key::Num9},
+        {0xA, sf::Keyboard::Key::A   },
+        {0xB, sf::Keyboard::Key::B   },
+        {0xC, sf::Keyboard::Key::C   },
+        {0xD, sf::Keyboard::Key::D   },
+        {0xE, sf::Keyboard::Key::E   },
+        {0xF, sf::Keyboard::Key::F   },
+    };
+
     class Interpreter {
         State m_state;
         sf::Image m_canvas;
@@ -47,29 +66,10 @@ namespace CHIP8 {
         static constexpr int SCREEN_WIDTH  = NATIVE_WIDTH  * SCREEN_SCALE;
         static constexpr int SCREEN_HEIGHT = NATIVE_HEIGHT * SCREEN_SCALE;
 
-        static constexpr std::array<sf::Keyboard::Key, 0x10> key_bindings = {
-            /* 0 */ sf::Keyboard::Key::Num0,
-            /* 1 */ sf::Keyboard::Key::Num1,
-            /* 2 */ sf::Keyboard::Key::Num2,
-            /* 3 */ sf::Keyboard::Key::Num3,
-            /* 4 */ sf::Keyboard::Key::Num4,
-            /* 5 */ sf::Keyboard::Key::Num5,
-            /* 6 */ sf::Keyboard::Key::Num6,
-            /* 7 */ sf::Keyboard::Key::Num7,
-            /* 8 */ sf::Keyboard::Key::Num8,
-            /* 9 */ sf::Keyboard::Key::Num9,
-            /* A */ sf::Keyboard::Key::A,
-            /* B */ sf::Keyboard::Key::B,
-            /* C */ sf::Keyboard::Key::C,
-            /* D */ sf::Keyboard::Key::D,
-            /* E */ sf::Keyboard::Key::E,
-            /* F */ sf::Keyboard::Key::F,
-        };
-
         Interpreter();
 
         /* Retrieve memory of virtual machine */
-        State& get_state();
+        State& get_state() { return m_state; }
         sf::Image& get_canvas() { return m_canvas; }
 
         /* Loads a CHIP8 program into memory from disk */
@@ -94,7 +94,7 @@ namespace CHIP8 {
         */
         void draw_pixel(byte_t x, byte_t y, bool pixel);
 
-        /* Sets all the canvas pixels to white */
+        /* Sets all the canvas pixels to black */
         void clear_canvas();
 
         /* Returns a random integer between 0 and 255 */

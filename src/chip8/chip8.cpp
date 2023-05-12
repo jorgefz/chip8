@@ -20,10 +20,6 @@ namespace CHIP8 {
         m_halt_until_key = false;
     }
 
-    State& Interpreter::get_state(){
-        return this->m_state;
-    }
-
     void Interpreter::load_file(std::string filename){
         std::ifstream input(filename, std::ios::binary);
         if(!input){
@@ -65,15 +61,9 @@ namespace CHIP8 {
 
             sf::Event event;
             while (window.pollEvent(event)) {
-                switch(event.type){
-                    case sf::Event::Closed:
-                        window.close();
-                        break;
-                    case sf::Event::KeyPressed:
-                        if(m_halt_until_key){
-                            check_halt_key(event.key.code);
-                        }
-                        break;
+                if(event.type == sf::Event::Closed) window.close();
+                else if(event.type == sf::Event::KeyPressed && m_halt_until_key){
+                    check_halt_key(event.key.code);
                 }
             }
             
@@ -82,30 +72,21 @@ namespace CHIP8 {
             window.draw(m_sprite);
             window.display();
 
-            if(m_state.pc == CHIP8::RAM_SIZE){
-                continue;
-            }
-
-            if(m_halt_until_key){
-                std::cout << "Halted " << std::endl;
-                continue;
-            }
-
+            if(m_halt_until_key) continue;
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
-            m_state.pc += 2; // Avoids having to use flag to check whether to increment
+            m_state.pc += 2;
             run_instruction(code);
 
             if(m_state.pc >= CHIP8::RAM_SIZE){
-                debug_error(code, "RAM overflow - jumped too far");
+                debug_error(code, "RAM overflow");
             }
         }
     }
 
     void Interpreter::draw_byte(byte_t x, byte_t y, byte_t byte){
         // draws 8 pixels from X=x to X=x+8, at constant Y=y.
-        /// TODO: ensure draw order for x-coordinate is correct
         for(byte_t i = 0; i != 8; ++i){
-            draw_pixel(x + 8-i, y, byte & (1 << i));
+            draw_pixel(x + 7 - i, y, byte & (1 << i));
         }
     }
 
@@ -154,16 +135,15 @@ namespace CHIP8 {
     }
 
     void Interpreter::check_halt_key(sf::Keyboard::Key keycode){
-        const sf::Keyboard::Key* key = std::find(
+        auto found = std::find_if(
             key_bindings.begin(),
             key_bindings.end(),
-            keycode
+            [&](const auto& pair){return pair.second == keycode;}
         );
-        if (key == key_bindings.end()){
-            return;
-        }
-        m_state.regs[m_reg_store_key] = static_cast<byte_t>(std::distance(key_bindings.begin(), key));
+        if(found == key_bindings.end()) return;
+        m_state.regs[m_reg_store_key] = found->first;
         m_halt_until_key = false;
+        m_state.pc += 2;
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -239,23 +219,23 @@ namespace CHIP8 {
                 byte_t x = m_state.regs[nib3];
                 byte_t y = m_state.regs[nib2];
                 m_state.regs[0xF] = 0;
-                if(m_state.Ireg+nib1 > RAM_SIZE){
-                    debug_error(code, "RAM overflow -  'I' register out of bounds when retrieving sprite");
+                if(m_state.Ireg + nib1 > RAM_SIZE){
+                    debug_error(code,
+                        "RAM overflow - 'I' register out of bounds when retrieving sprite");
                 }
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
                     draw_byte(x, y + i, sprite_line);
-                    /// TODO: ensure y-coordinate draw direction is correct
                 }
                 break;
             }
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(sf::Keyboard::isKeyPressed(key_bindings[nib3])) m_state.pc += 2;
+                        if(sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.pc += 2;
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!sf::Keyboard::isKeyPressed(key_bindings[nib3])) m_state.pc += 2;
+                        if(!sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.pc += 2;
                         break;
                 }
                 break;
