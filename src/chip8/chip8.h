@@ -39,6 +39,7 @@ namespace CHIP8 {
         double m_timer_freq; // Hz
         bool m_halt_until_key;
         byte_t m_reg_store_key;
+        bool m_increment_pc;
     
     public:
         static constexpr int NATIVE_WIDTH  = 64;

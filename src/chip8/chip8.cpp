@@ -1,4 +1,12 @@
 #include "chip8.h"
+#include <cassert>
+#include <sstream>
+
+static void debug_error(uint16_t code, std::string msg){
+    std::stringstream error_msg;
+    error_msg << std::hex << "[0x"<<code<<"]" << msg << std::endl;
+    throw std::runtime_error(error_msg.str().c_str());
+}
 
 namespace CHIP8 {
 
@@ -10,6 +18,7 @@ namespace CHIP8 {
         m_timer = 0.0;
         m_timer_freq = 60.0; // Hz
         m_halt_until_key = false;
+        m_increment_pc = true;
     }
 
     State& Interpreter::get_state(){
@@ -83,9 +92,12 @@ namespace CHIP8 {
                 continue;
             }
 
+            m_increment_pc = true;
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
             run_instruction(code);
-            m_state.pc += 2;
+            if(m_increment_pc){
+                m_state.pc += 2;
+            }
         }
     }
 
@@ -183,6 +195,7 @@ namespace CHIP8 {
                     }
                     m_state.pc = m_state.stack[m_state.sp-1];
                     m_state.sp--;
+                    m_increment_pc = false;
                 }
                 break;
             // JMP
@@ -197,8 +210,9 @@ namespace CHIP8 {
                     );
                 }
                 m_state.sp++;
-                m_state.stack[m_state.sp-1] = m_state.pc;
+                m_state.stack[m_state.sp-1] = m_state.pc + 2;
                 m_state.pc = addr;
+                m_increment_pc = false;
                 break;
             // SE (skip if)
             case 0x3:
@@ -206,9 +220,10 @@ namespace CHIP8 {
                     break;
                 }
                 if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    throw std::runtime_error("RAM overflow");
+                    debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
+                m_increment_pc = false;
                 break;
             // SNE (skip if not)
             case 0x4:
@@ -216,9 +231,10 @@ namespace CHIP8 {
                     break;
                 }
                 if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    throw std::runtime_error("RAM overflow");
+                    debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
+                m_increment_pc = false;
                 break;
             // SE-regs (skip if registers are equal)
             case 0x5:
@@ -226,9 +242,10 @@ namespace CHIP8 {
                     break;
                 }
                 if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    throw std::runtime_error("RAM overflow");
+                    debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
+                m_increment_pc = false;
                 break;
             // LD - Set register to byte
             case 0x6:
@@ -284,9 +301,10 @@ namespace CHIP8 {
                     break;
                 }
                 if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    throw std::runtime_error("RAM overflow");
+                    debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
+                m_increment_pc = false;
                 break;
             // Set address pointer
             case 0xA:
@@ -295,7 +313,7 @@ namespace CHIP8 {
             // JMP w/ offset
             case 0xB:
                 if(addr + m_state.regs[0x0] > 0xFFF){
-                    throw std::runtime_error("RAM overflow");
+                    debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc = addr + m_state.regs[0x0];
                 break;
@@ -308,6 +326,9 @@ namespace CHIP8 {
                 byte_t x = m_state.regs[nib3];
                 byte_t y = m_state.regs[nib2];
                 m_state.regs[0xF] = 0;
+                if(m_state.Ireg+nib1 > RAM_SIZE){
+                    debug_error(code, "RAM overflow -  'I' register out of bounds when retrieving sprite");
+                }
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
                     draw_byte(x, y + i, sprite_line);
@@ -323,18 +344,20 @@ namespace CHIP8 {
                             break;
                         }
                         if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                            throw std::runtime_error("RAM overflow");
+                            debug_error(code, "RAM overflow - jumped too far");
                         }
                         m_state.pc += 2;
+                        m_increment_pc = false;
                         break;
                     case 0xA1: // Skip if key not pressed
                         if(sf::Keyboard::isKeyPressed(key_bindings[nib3])){
                             break;
                         }
                         if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                            throw std::runtime_error("RAM overflow");
+                            debug_error(code, "RAM overflow - jumped too far");
                         }
                         m_state.pc += 2;
+                        m_increment_pc = false;
                         break;
                     default:
                         break;
