@@ -18,7 +18,6 @@ namespace CHIP8 {
         m_timer = 0.0;
         m_timer_freq = 60.0; // Hz
         m_halt_until_key = false;
-        m_increment_pc = true;
     }
 
     State& Interpreter::get_state(){
@@ -92,12 +91,9 @@ namespace CHIP8 {
                 continue;
             }
 
-            m_increment_pc = true;
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
+            m_state.pc += 2; // Avoids having to use flag to check whether to increment
             run_instruction(code);
-            if(m_increment_pc){
-                m_state.pc += 2;
-            }
         }
     }
 
@@ -195,7 +191,6 @@ namespace CHIP8 {
                     }
                     m_state.pc = m_state.stack[m_state.sp-1];
                     m_state.sp--;
-                    m_increment_pc = false;
                 }
                 break;
             // JMP
@@ -212,7 +207,6 @@ namespace CHIP8 {
                 m_state.sp++;
                 m_state.stack[m_state.sp-1] = m_state.pc + 2;
                 m_state.pc = addr;
-                m_increment_pc = false;
                 break;
             // SE (skip if)
             case 0x3:
@@ -223,7 +217,6 @@ namespace CHIP8 {
                     debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
-                m_increment_pc = false;
                 break;
             // SNE (skip if not)
             case 0x4:
@@ -234,7 +227,6 @@ namespace CHIP8 {
                     debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
-                m_increment_pc = false;
                 break;
             // SE-regs (skip if registers are equal)
             case 0x5:
@@ -245,7 +237,6 @@ namespace CHIP8 {
                     debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
-                m_increment_pc = false;
                 break;
             // LD - Set register to byte
             case 0x6:
@@ -304,7 +295,6 @@ namespace CHIP8 {
                     debug_error(code, "RAM overflow - jumped too far");
                 }
                 m_state.pc += 2;
-                m_increment_pc = false;
                 break;
             // Set address pointer
             case 0xA:
@@ -347,7 +337,6 @@ namespace CHIP8 {
                             debug_error(code, "RAM overflow - jumped too far");
                         }
                         m_state.pc += 2;
-                        m_increment_pc = false;
                         break;
                     case 0xA1: // Skip if key not pressed
                         if(sf::Keyboard::isKeyPressed(key_bindings[nib3])){
@@ -357,7 +346,6 @@ namespace CHIP8 {
                             debug_error(code, "RAM overflow - jumped too far");
                         }
                         m_state.pc += 2;
-                        m_increment_pc = false;
                         break;
                     default:
                         break;
