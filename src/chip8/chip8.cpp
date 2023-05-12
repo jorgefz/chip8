@@ -94,6 +94,10 @@ namespace CHIP8 {
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
             m_state.pc += 2; // Avoids having to use flag to check whether to increment
             run_instruction(code);
+
+            if(m_state.pc >= CHIP8::RAM_SIZE){
+                debug_error(code, "RAM overflow - jumped too far");
+            }
         }
     }
 
@@ -165,114 +169,55 @@ namespace CHIP8 {
     void Interpreter::run_instruction(uint16_t code){
         
         // Nibbles
-        byte_t nib1 = (code & 0x000F),
-               nib2 = (code & 0x00F0) >> 4,
-               nib3 = (code & 0x0F00) >> 8,
-               nib4 = (code & 0xF000) >> 12;
-        
+        byte_t nib1 = (code & 0x000F);
+        byte_t nib2 = (code & 0x00F0) >> 4;
+        byte_t nib3 = (code & 0x0F00) >> 8;
+        byte_t high_nibble = (code & 0xF000) >> 12;
         byte_t low_byte = (code & 0x00FF);
-        
-        // The least significant tribble (12bit) value
-        // is typically used as a memory address
         uint16_t addr = (code & 0x0FFF);
         
-        switch(nib4) {
-            // Misc - general state
+        switch(high_nibble) {
             case 0x0:
-                if(code == 0x00E0){
-                    // CLS - clear display
-                    clear_canvas();
-                } else if (code == 0x00EE){
-                    // RET - return from subroutine
-                    if(m_state.sp == 0){
-                        throw std::runtime_error(
-                            "Cannot return from outside a subroutine"
-                        );
-                    }
-                    m_state.pc = m_state.stack[m_state.sp-1];
-                    m_state.sp--;
+                if(code == 0x00E0) clear_canvas(); // CLS
+                else if (code == 0x00EE){ // RET
+                    assert(m_state.sp > 0);
+                    m_state.pc = m_state.stack[--m_state.sp];
                 }
                 break;
-            // JMP
-            case 0x1:
+            case 0x1: m_state.pc = addr; break; // JMP
+            case 0x2: // CALL
+                assert(m_state.sp <= STACK_SIZE);
+                m_state.stack[++m_state.sp-1] = m_state.pc + 2;
                 m_state.pc = addr;
                 break;
-            // CALL
-            case 0x2:
-                if(m_state.sp == STACK_SIZE){
-                    throw std::runtime_error(
-                        "Stack overflow. Too many subroutine calls!"
-                    );
-                }
-                m_state.sp++;
-                m_state.stack[m_state.sp-1] = m_state.pc + 2;
-                m_state.pc = addr;
+            case 0x3: // SE
+                if(m_state.regs[nib3] == low_byte) m_state.pc += 2;
                 break;
-            // SE (skip if)
-            case 0x3:
-                if(m_state.regs[nib3] != low_byte){
-                    break;
-                }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    debug_error(code, "RAM overflow - jumped too far");
-                }
-                m_state.pc += 2;
+            case 0x4: // SNE
+                if(m_state.regs[nib3] != low_byte) m_state.pc += 2;
                 break;
-            // SNE (skip if not)
-            case 0x4:
-                if(m_state.regs[nib3] == low_byte){
-                    break;
-                }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    debug_error(code, "RAM overflow - jumped too far");
-                }
-                m_state.pc += 2;
+            case 0x5: // SE
+                if(m_state.regs[nib2] == m_state.regs[nib3]) m_state.pc += 2;
                 break;
-            // SE-regs (skip if registers are equal)
-            case 0x5:
-                if(m_state.regs[nib2] != m_state.regs[nib3]){
-                    break;
-                }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    debug_error(code, "RAM overflow - jumped too far");
-                }
-                m_state.pc += 2;
-                break;
-            // LD - Set register to byte
-            case 0x6:
-                m_state.regs[nib3] = low_byte;
-                break;
-            // ADD
-            case 0x7:
-                m_state.regs[nib3] += low_byte;
-                break;
-            // Registry operations
-            case 0x8:
+            case 0x6: m_state.regs[nib3]  = low_byte; break; // LD
+            case 0x7: m_state.regs[nib3] += low_byte; break; // ADD
+            case 0x8: // Bitwise/arithmetic operations
                 switch(nib1){
-                    case 0x0: // SET
-                        m_state.regs[nib3] = m_state.regs[nib2];
-                        break;
-                    case 0x1: // OR
-                        m_state.regs[nib3] |= m_state.regs[nib2];
-                        break;
-                    case 0x2: // AND
-                        m_state.regs[nib3] &= m_state.regs[nib2];
-                        break;
-                    case 0x3: // XOR
-                        m_state.regs[nib3] ^= m_state.regs[nib2];
-                        break;
-                    case 0x4: // ADD 
+                    case 0x0: m_state.regs[nib3]  = m_state.regs[nib2]; break; // LD
+                    case 0x1: m_state.regs[nib3] |= m_state.regs[nib2]; break; // OR
+                    case 0x2: m_state.regs[nib3] &= m_state.regs[nib2]; break; // AND
+                    case 0x3: m_state.regs[nib3] ^= m_state.regs[nib2]; break; // XOR
+                    case 0x4: // ADD
                         m_state.regs[0xF] = (m_state.regs[nib3] + m_state.regs[nib2]) > 0xFF;
                         m_state.regs[nib3] += m_state.regs[nib2];
                         break;
-                    case 0x5: // SUB
-                        // Note: VF flag is set if no underflow
+                    case 0x5: // SUB (VF = NO BORROW)
                         m_state.regs[0xF] = !(m_state.regs[nib2] > m_state.regs[nib3]);
                         m_state.regs[nib3] -= m_state.regs[nib2];
                         break;
                     case 0x6: // SHR
                         m_state.regs[0xF] = (m_state.regs[nib3] & 0x1);
-                        m_state.regs[nib3] >>= 1;  // /= 2;
+                        m_state.regs[nib3] >>= 1;
                         break;
                     case 0x7: // SUBN
                         m_state.regs[0xF] = (m_state.regs[nib2] > m_state.regs[nib3]);
@@ -280,39 +225,17 @@ namespace CHIP8 {
                         break;
                     case 0xE: // SHL
                         m_state.regs[0xF] = (m_state.regs[nib3] & (1 << 7)) != 0x0;
-                        m_state.regs[nib3] <<= 1;  // *= 2;
-                        break;
-                    default:
+                        m_state.regs[nib3] <<= 1;
                         break;
                 }
                 break;
-            // Skip if registers not equal
-            case 0x9:
-                if(m_state.regs[nib2] == m_state.regs[nib3]){
-                    break;
-                }
-                if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                    debug_error(code, "RAM overflow - jumped too far");
-                }
-                m_state.pc += 2;
+            case 0x9: // SNE
+                if(m_state.regs[nib2] != m_state.regs[nib3]) m_state.pc += 2;
                 break;
-            // Set address pointer
-            case 0xA:
-                m_state.Ireg = addr;
-                break;
-            // JMP w/ offset
-            case 0xB:
-                if(addr + m_state.regs[0x0] > 0xFFF){
-                    debug_error(code, "RAM overflow - jumped too far");
-                }
-                m_state.pc = addr + m_state.regs[0x0];
-                break;
-            // RAND & reg
-            case 0xC:
-                m_state.regs[nib3] = random_byte() & low_byte;
-                break;
-            // Display sprite
-            case 0xD: {
+            case 0xA: m_state.Ireg = addr; break; // LD
+            case 0xB: m_state.pc = addr + m_state.regs[0x0]; break; // JMP
+            case 0xC: m_state.regs[nib3] = random_byte() & low_byte; break; // RND
+            case 0xD: { // DRW
                 byte_t x = m_state.regs[nib3];
                 byte_t y = m_state.regs[nib2];
                 m_state.regs[0xF] = 0;
@@ -326,77 +249,43 @@ namespace CHIP8 {
                 }
                 break;
             }
-            // Skip if key
-            case 0xE:
+            case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(!sf::Keyboard::isKeyPressed(key_bindings[nib3])){
-                            break;
-                        }
-                        if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                            debug_error(code, "RAM overflow - jumped too far");
-                        }
-                        m_state.pc += 2;
+                        if(sf::Keyboard::isKeyPressed(key_bindings[nib3])) m_state.pc += 2;
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(sf::Keyboard::isKeyPressed(key_bindings[nib3])){
-                            break;
-                        }
-                        if(m_state.pc + 2 >= CHIP8::RAM_SIZE){
-                            debug_error(code, "RAM overflow - jumped too far");
-                        }
-                        m_state.pc += 2;
-                        break;
-                    default:
+                        if(!sf::Keyboard::isKeyPressed(key_bindings[nib3])) m_state.pc += 2;
                         break;
                 }
                 break;
-            // Misc
-            case 0xF:
+            case 0xF: // Misc
                 switch(low_byte){
-                    case 0x07: // Get DT
-                        m_state.regs[nib3] = m_state.DTreg;
-                        break;
+                    case 0x07:  m_state.regs[nib3] = m_state.DTreg; break; //LD
                     case 0x0A: // Halt execution until key press
                         m_halt_until_key = true;
                         m_reg_store_key = nib3;
                         break;
-                    case 0x15: // Set DT
-                        m_state.DTreg = m_state.regs[nib3];
-                        break;
-                    case 0x18: // Set ST
-                        m_state.STreg = m_state.regs[nib3];
-                        break;
-                    case 0x1E: // Increase I
-                        m_state.Ireg += m_state.regs[nib3];
-                        break;
-                    case 0x29:
-                        // Get location of font sprite
-                        // representing value at nib3
-                        m_state.Ireg = m_state.regs[nib3] * 5; // Each hex sprite is 5 bytes long
-                        break;
-                    case 0x33: // Store BCD representation
+                    case 0x15: m_state.DTreg = m_state.regs[nib3]; break; // LD
+                    case 0x18: m_state.STreg = m_state.regs[nib3]; break; // LD
+                    case 0x1E: m_state.Ireg += m_state.regs[nib3]; break; // ADD
+                    case 0x29: m_state.Ireg = m_state.regs[nib3] * 5; break; // get digit
+                    case 0x33: // BCD
                         m_state.ram[m_state.Ireg]   = (m_state.regs[nib3]/100) % 10;
                         m_state.ram[m_state.Ireg+1] = (m_state.regs[nib3]/10)  % 10;
                         m_state.ram[m_state.Ireg+2] =  m_state.regs[nib3]      % 10;
                         break;
-                    case 0x55: // Save registers to RAM
+                    case 0x55: // LD
                         for(byte_t i = 0x0; i != nib3 + 1; ++i){
                             m_state.ram[m_state.Ireg + i] = m_state.regs[i];
                         }
                         break;
-                    case 0x65: // Load registers from RAM
+                    case 0x65: // LD
                         for(byte_t i = 0x0; i != 0xF+1; ++i){
                             m_state.regs[i] = m_state.ram[m_state.Ireg + i];
                         }
                         break;
-                    default:
-                        break;
                 }
-                break;
-            default:
-                std::cout << "Invalid instruction 0x" << std::hex << code << std::endl;
-                std::runtime_error(" ");
                 break;
         }
     }
