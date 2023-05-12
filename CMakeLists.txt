@@ -5,6 +5,7 @@ project(chip8 LANGUAGES CXX VERSION 0.1.0)
 file (GLOB_RECURSE CHIP8_SOURCES CONFIGURE_DEPENDS "src/chip8/*.cpp")
 add_executable(chip8 src/main.cpp ${CHIP8_SOURCES})
 target_link_libraries(chip8 PUBLIC sfml-graphics sfml-audio sfml-window sfml-system)
+set(CMAKE_CXX_FLAGS "-ggdb -O0") # debugging
 
 # Tests project
 find_package(Catch2 3 REQUIRED)
