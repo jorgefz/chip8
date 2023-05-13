@@ -9,7 +9,8 @@ set(CMAKE_CXX_FLAGS "-ggdb -O0") # debugging
 
 # Tests project
 find_package(Catch2 3 REQUIRED)
-add_executable(tests tests/tests.cpp src/chip8/chip8.cpp src/chip8/state.cpp)
+file (GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "tests/*.cpp")
+add_executable(tests ${TEST_SOURCES} ${CHIP8_SOURCES})
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(tests PUBLIC sfml-graphics sfml-audio sfml-window sfml-system)
 include(CTest)

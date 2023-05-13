@@ -221,7 +221,7 @@ namespace CHIP8 {
                 m_state.regs[0xF] = 0;
                 if(m_state.Ireg + nib1 > RAM_SIZE){
                     debug_error(code,
-                        "RAM overflow - 'I' register out of bounds when retrieving sprite");
+                        "RAM overflow. I register out of bounds when retrieving sprite");
                 }
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
