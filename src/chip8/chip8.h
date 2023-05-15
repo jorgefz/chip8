@@ -46,7 +46,7 @@ namespace CHIP8 {
         {0xE, sf::Keyboard::Key::E   },
         {0xF, sf::Keyboard::Key::F   },
     };
-
+    
     class Interpreter {
         State m_state;
         sf::Image m_canvas;

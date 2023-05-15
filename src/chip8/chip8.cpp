@@ -25,7 +25,7 @@ namespace CHIP8 {
         if(!input){
             throw std::runtime_error("Input file not found");
         }
-
+        
         // The contents are copied to the program region of the RAM
         input.read(
             reinterpret_cast<char*>(m_state.ram.data()) + RAM_PROG_OFFSET,
