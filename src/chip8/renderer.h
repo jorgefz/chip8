@@ -35,6 +35,9 @@ namespace CHIP8 {
         /* Creates a window */
         void init();
 
+        // Only for testing
+        sf::Image& get_canvas() { return m_canvas; }
+
         /* True if the window is open */
         bool is_running();
 
@@ -50,7 +53,7 @@ namespace CHIP8 {
         Returns True if a pixel was overwritten. */
         bool draw_pixel(uint8_t x, uint8_t y, bool pixel);
 
-        /* Fills out the canvas with ... color */
+        /* Fills out the canvas with black color */
         void clear_canvas();
 
         /* Defines the two colors used on the canvas */

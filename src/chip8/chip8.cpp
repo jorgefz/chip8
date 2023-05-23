@@ -43,34 +43,19 @@ namespace CHIP8 {
     }
 
     void Interpreter::run(){
-        // Initialise window
-        sf::VideoMode mode(SCREEN_WIDTH, SCREEN_HEIGHT);
-        sf::RenderWindow window(mode, "CHIP8");
 
-        // Setup program display/canvas
-        m_canvas.create(NATIVE_WIDTH, NATIVE_HEIGHT, sf::Color::Black);
-        m_texture.loadFromImage(m_canvas);
-        m_sprite.setTexture(m_texture, true);
-        m_sprite.setScale(SCREEN_SCALE, SCREEN_SCALE);
-        clear_canvas();
+        m_renderer.set_key_callback([&](int keycode){
+            if(m_halt_until_key){
+                check_halt_key(static_cast<sf::Keyboard::Key>(keycode));
+            }
+        });
+
+        m_renderer.init();
 
         double dt;
-        while (window.isOpen()) {
-            dt = m_clock.restart().asMilliseconds();
+        while (m_renderer.is_running()) {
+            dt = m_renderer.update();
             update_timers(dt);
-
-            sf::Event event;
-            while (window.pollEvent(event)) {
-                if(event.type == sf::Event::Closed) window.close();
-                else if(event.type == sf::Event::KeyPressed && m_halt_until_key){
-                    check_halt_key(event.key.code);
-                }
-            }
-            
-            window.clear();
-            m_texture.update(m_canvas);
-            window.draw(m_sprite);
-            window.display();
 
             if(m_halt_until_key) continue;
             uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
@@ -83,37 +68,6 @@ namespace CHIP8 {
         }
     }
 
-    void Interpreter::draw_byte(byte_t x, byte_t y, byte_t byte){
-        // draws 8 pixels from X=x to X=x+8, at constant Y=y.
-        for(byte_t i = 0; i != 8; ++i){
-            draw_pixel(x + 7 - i, y, byte & (1 << i));
-        }
-    }
-
-    void Interpreter::draw_pixel(uint8_t x, uint8_t y, bool pixel){
-        // Calculate position
-        x %= NATIVE_WIDTH;
-        y %= NATIVE_HEIGHT;
-        // Calculate color
-        pixel ^= (m_canvas.getPixel(x, y).r > 0);
-        auto color = pixel ? sf::Color::White : sf::Color::Black;
-        // Set VF if pixel erased
-        if( (m_canvas.getPixel(x, y).r > 0) && pixel){
-            m_state.regs[0xF] = 1;
-        }
-        // Draw pixel
-        m_canvas.setPixel(x, y, color);
-    }
-
-    void Interpreter::clear_canvas(){
-        for(int i = 0; i != NATIVE_WIDTH; ++i){
-            for(int j = 0; j != NATIVE_HEIGHT; ++j){
-                m_canvas.setPixel(i, j, sf::Color::Black);
-            }
-        }
-    }
-
-    /// TODO: set up random number generator
     byte_t Interpreter::random_byte(){
         std::uniform_int_distribution<byte_t> distribution(0x0, 0xFF);
         return distribution(m_rng);
@@ -158,7 +112,7 @@ namespace CHIP8 {
         
         switch(high_nibble) {
             case 0x0:
-                if(code == 0x00E0) clear_canvas(); // CLS
+                if(code == 0x00E0) m_renderer.clear_canvas(); // CLS
                 else if (code == 0x00EE){ // RET
                     assert(m_state.sp > 0);
                     m_state.pc = m_state.stack[--m_state.sp];
@@ -225,7 +179,7 @@ namespace CHIP8 {
                 }
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
-                    draw_byte(x, y + i, sprite_line);
+                    m_state.regs[0xF] = m_renderer.draw_byte(x, y + i, sprite_line);
                 }
                 break;
             }

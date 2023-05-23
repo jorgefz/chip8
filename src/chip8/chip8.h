@@ -25,10 +25,12 @@ Each step:
 
 #include <SFML/Graphics.hpp>
 #include "state.h"
+#include "renderer.h"
+
 
 namespace CHIP8 {
 
-    const std::unordered_map<byte_t, sf::Keyboard::Key> key_bindings = {
+    const std::unordered_map<byte_t, sf::Keyboard::Key> key_bindings = { //keymap
         {0x0, sf::Keyboard::Key::Num0},
         {0x1, sf::Keyboard::Key::Num1},
         {0x2, sf::Keyboard::Key::Num2},
@@ -49,10 +51,7 @@ namespace CHIP8 {
     
     class Interpreter {
         State m_state;
-        sf::Image m_canvas;
-        sf::Texture m_texture;
-        sf::Sprite m_sprite;
-        sf::Clock m_clock;
+        Renderer m_renderer;
         std::default_random_engine m_rng;
         double m_timer;
         double m_timer_freq; // Hz
@@ -70,7 +69,9 @@ namespace CHIP8 {
 
         /* Retrieve memory of virtual machine */
         State& get_state() { return m_state; }
-        sf::Image& get_canvas() { return m_canvas; }
+
+        // Only for testing
+        sf::Image& get_canvas() { return m_renderer.get_canvas(); }
 
         /* Loads a CHIP8 program into memory from disk */
         void load_file(std::string filename);
@@ -83,19 +84,6 @@ namespace CHIP8 {
 
         /* Executes the main loop and runs the loaded program */
         void run();
-
-        /* Draws 8 monochrome pixels encoded as bits in a byte  */
-        void draw_byte(byte_t x, byte_t y, byte_t byte);
-
-        /*
-        Draws a pixel in the canvas in white (0) or black (1).
-        The pixel is XOR'd with the screen pixel at that location.
-        If the location is outside the canvas, it wraps around.
-        */
-        void draw_pixel(byte_t x, byte_t y, bool pixel);
-
-        /* Sets all the canvas pixels to black */
-        void clear_canvas();
 
         /* Returns a random integer between 0 and 255 */
         byte_t random_byte();
