@@ -57,8 +57,7 @@ namespace CHIP8 {
 
             if(m_halt_until_key) continue;
 
-            uint16_t code = (m_state.ram[m_state.pc] << 8) | m_state.ram[m_state.pc+1];
-            m_state.pc += 2;
+            uint16_t code = m_state.advance();
             run_instruction(code);
 
             if(m_state.pc >= CHIP8::RAM_SIZE){
@@ -107,7 +106,7 @@ namespace CHIP8 {
         if(found == key_bindings.end()) return;
         m_state.regs[m_reg_store_key] = std::distance(key_bindings.begin(), found);
         m_halt_until_key = false;
-        m_state.pc += 2;
+        m_state.advance(); // m_state.pc += 2;
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -135,13 +134,13 @@ namespace CHIP8 {
                 m_state.pc = addr;
                 break;
             case 0x3: // SE
-                if(m_state.regs[nib3] == low_byte) m_state.pc += 2;
+                if(m_state.regs[nib3] == low_byte) m_state.advance(); // m_state.pc += 2;
                 break;
             case 0x4: // SNE
-                if(m_state.regs[nib3] != low_byte) m_state.pc += 2;
+                if(m_state.regs[nib3] != low_byte) m_state.advance(); // m_state.pc += 2;
                 break;
             case 0x5: // SE
-                if(m_state.regs[nib2] == m_state.regs[nib3]) m_state.pc += 2;
+                if(m_state.regs[nib2] == m_state.regs[nib3]) m_state.advance(); // m_state.pc += 2;
                 break;
             case 0x6: m_state.regs[nib3]  = low_byte; break; // LD
             case 0x7: m_state.regs[nib3] += low_byte; break; // ADD
@@ -174,7 +173,7 @@ namespace CHIP8 {
                 }
                 break;
             case 0x9: // SNE
-                if(m_state.regs[nib2] != m_state.regs[nib3]) m_state.pc += 2;
+                if(m_state.regs[nib2] != m_state.regs[nib3]) m_state.advance(); // m_state.pc += 2;
                 break;
             case 0xA: m_state.Ireg = addr; break; // LD
             case 0xB: m_state.pc = addr + m_state.regs[0x0]; break; // JMP
@@ -196,10 +195,10 @@ namespace CHIP8 {
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.pc += 2;
+                        if(sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.advance(); // m_state.pc += 2;
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.pc += 2;
+                        if(!sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.advance(); // m_state.pc += 2;
                         break;
                 }
                 break;
@@ -231,6 +230,9 @@ namespace CHIP8 {
                         break;
                 }
                 break;
+            default:
+                std::cout << "Invalid opcode " << std::hex << high_nibble << std::endl;
+                exit(0);
         }
     }
 }

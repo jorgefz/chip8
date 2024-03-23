@@ -28,26 +28,6 @@ Each step:
 #include "renderer.h"
 
 namespace CHIP8 {
-    /*
-    const std::unordered_map<byte_t, sf::Keyboard::Key> key_bindings = {
-        {0x0, sf::Keyboard::Key::Num0},
-        {0x1, sf::Keyboard::Key::Num1},
-        {0x2, sf::Keyboard::Key::Num2},
-        {0x3, sf::Keyboard::Key::Num3},
-        {0x4, sf::Keyboard::Key::Num4},
-        {0x5, sf::Keyboard::Key::Num5},
-        {0x6, sf::Keyboard::Key::Num6},
-        {0x7, sf::Keyboard::Key::Num7},
-        {0x8, sf::Keyboard::Key::Num8},
-        {0x9, sf::Keyboard::Key::Num9},
-        {0xA, sf::Keyboard::Key::A   },
-        {0xB, sf::Keyboard::Key::B   },
-        {0xC, sf::Keyboard::Key::C   },
-        {0xD, sf::Keyboard::Key::D   },
-        {0xE, sf::Keyboard::Key::E   },
-        {0xF, sf::Keyboard::Key::F   },
-    };
-    */
 
     const std::array<sf::Keyboard::Key, 0x10> key_bindings = {
         sf::Keyboard::Key::Num0,
@@ -102,6 +82,9 @@ namespace CHIP8 {
         /* Executes the main loop and runs the loaded program */
         void run();
 
+        /* Executes an opcode on the current state */
+        void run_instruction(uint16_t code);
+
         /* Draws 8 monochrome pixels encoded as bits in a byte  */
         void draw_byte(byte_t x, byte_t y, byte_t byte);
 
@@ -120,8 +103,6 @@ namespace CHIP8 {
 
         void check_halt_key(int keycode);
 
-        /* Executes an opcode on the current state */
-        void run_instruction(uint16_t code);
     };
 
 }

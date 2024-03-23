@@ -43,7 +43,12 @@ namespace CHIP8 {
         // Memory
         std::array<byte_t,   RAM_SIZE>     ram;
         std::array<uint16_t, STACK_SIZE>   stack;
-        std::array<byte_t,   REGISTER_NUM> regs;  // General purpose "V" registers
+
+        // Registers
+        std::array<byte_t,   REGISTER_NUM> regs;
+        byte_t   DTreg; // delay timer, 8bit register
+        byte_t   STreg; // sound timer, 8bit register
+        uint16_t Ireg;  // address store, 16bit register
 
         // Pointers
         uint16_t pc;  // Program counter
@@ -51,14 +56,14 @@ namespace CHIP8 {
         byte_t   sp;  // Stack pointer.
                       // Treated as current stack size.
                       // Access top of stack with `stack[sp-1]`.
-        
-        // Special registers
-        byte_t   DTreg; // delay timer, 8bit register
-        byte_t   STreg; // sound timer, 8bit register
-        uint16_t Ireg;  // address store, 16bit register
 
         // Methods
+
+        /* Resets all memory */
         void reset();
+
+        /* Moves the program counter and returns the last opcode */
+        uint16_t advance();
     };
 
 }
