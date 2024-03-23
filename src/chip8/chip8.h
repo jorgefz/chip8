@@ -103,6 +103,8 @@ namespace CHIP8 {
 
         void check_halt_key(int keycode);
 
+        bool is_key_pressed(int keycode);
+
     };
 
 }

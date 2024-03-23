@@ -106,7 +106,11 @@ namespace CHIP8 {
         if(found == key_bindings.end()) return;
         m_state.regs[m_reg_store_key] = std::distance(key_bindings.begin(), found);
         m_halt_until_key = false;
-        m_state.advance(); // m_state.pc += 2;
+        m_state.advance();
+    }
+
+    bool Interpreter::is_key_pressed(int keycode){
+        return sf::Keyboard::isKeyPressed(key_bindings.at(keycode));
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -121,29 +125,42 @@ namespace CHIP8 {
         
         switch(high_nibble) {
             case 0x0:
-                if(code == 0x00E0) m_renderer.clear_canvas(); // CLS
-                else if (code == 0x00EE){ // RET
+                if(code == 0x00E0){ // CLS
+                    m_renderer.clear_canvas();
+                } else if (code == 0x00EE){ // RET
                     assert(m_state.sp > 0);
                     m_state.pc = m_state.stack[--m_state.sp];
                 }
                 break;
-            case 0x1: m_state.pc = addr; break; // JMP
+            case 0x1:
+                m_state.pc = addr;
+                break; // JMP
             case 0x2: // CALL
                 assert(m_state.sp <= STACK_SIZE);
                 m_state.stack[++m_state.sp-1] = m_state.pc + 2;
                 m_state.pc = addr;
                 break;
             case 0x3: // SE
-                if(m_state.regs[nib3] == low_byte) m_state.advance(); // m_state.pc += 2;
+                if(m_state.regs[nib3] == low_byte){
+                    m_state.advance();
+                }
                 break;
             case 0x4: // SNE
-                if(m_state.regs[nib3] != low_byte) m_state.advance(); // m_state.pc += 2;
+                if(m_state.regs[nib3] != low_byte){
+                    m_state.advance();
+                }
                 break;
             case 0x5: // SE
-                if(m_state.regs[nib2] == m_state.regs[nib3]) m_state.advance(); // m_state.pc += 2;
+                if(m_state.regs[nib2] == m_state.regs[nib3]){
+                    m_state.advance();
+                }
                 break;
-            case 0x6: m_state.regs[nib3]  = low_byte; break; // LD
-            case 0x7: m_state.regs[nib3] += low_byte; break; // ADD
+            case 0x6: // LD
+                m_state.regs[nib3]  = low_byte;
+                break;
+            case 0x7: // ADD
+                m_state.regs[nib3] += low_byte;
+                break;
             case 0x8: // Bitwise/arithmetic operations
                 switch(nib1){
                     case 0x0: m_state.regs[nib3]  = m_state.regs[nib2]; break; // LD
@@ -173,18 +190,26 @@ namespace CHIP8 {
                 }
                 break;
             case 0x9: // SNE
-                if(m_state.regs[nib2] != m_state.regs[nib3]) m_state.advance(); // m_state.pc += 2;
+                if(m_state.regs[nib2] != m_state.regs[nib3]){
+                    m_state.advance();
+                }
                 break;
-            case 0xA: m_state.Ireg = addr; break; // LD
-            case 0xB: m_state.pc = addr + m_state.regs[0x0]; break; // JMP
-            case 0xC: m_state.regs[nib3] = random_byte() & low_byte; break; // RND
+            case 0xA: // LD
+                m_state.Ireg = addr;
+                break;
+            case 0xB: // JMP
+                m_state.pc = addr + m_state.regs[0x0];
+                break;
+            case 0xC: // RND
+                m_state.regs[nib3] = random_byte() & low_byte;
+                break;
             case 0xD: { // DRW
                 byte_t x = m_state.regs[nib3];
                 byte_t y = m_state.regs[nib2];
                 m_state.regs[0xF] = 0;
                 if(m_state.Ireg + nib1 > RAM_SIZE){
                     debug_error(code,
-                        "RAM overflow. I register out of bounds when retrieving sprite");
+                        "RAM overflow. I-register out of bounds when retrieving sprite");
                 }
                 for(byte_t i = 0; i != nib1; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
@@ -195,10 +220,14 @@ namespace CHIP8 {
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.advance(); // m_state.pc += 2;
+                        if(is_key_pressed(nib3)){
+                            m_state.advance();
+                        }
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!sf::Keyboard::isKeyPressed(key_bindings.at(nib3))) m_state.advance(); // m_state.pc += 2;
+                        if(!is_key_pressed(nib3)){
+                            m_state.advance();
+                        }
                         break;
                 }
                 break;
@@ -224,7 +253,7 @@ namespace CHIP8 {
                         }
                         break;
                     case 0x65: // LD
-                        for(byte_t i = 0x0; i != 0xF+1; ++i){
+                        for(byte_t i = 0x0; i != 0x10; ++i){
                             m_state.regs[i] = m_state.ram[m_state.Ireg + i];
                         }
                         break;
