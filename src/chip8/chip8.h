@@ -28,7 +28,7 @@ Each step:
 #include "renderer.h"
 
 namespace CHIP8 {
-
+    /*
     const std::unordered_map<byte_t, sf::Keyboard::Key> key_bindings = {
         {0x0, sf::Keyboard::Key::Num0},
         {0x1, sf::Keyboard::Key::Num1},
@@ -46,6 +46,26 @@ namespace CHIP8 {
         {0xD, sf::Keyboard::Key::D   },
         {0xE, sf::Keyboard::Key::E   },
         {0xF, sf::Keyboard::Key::F   },
+    };
+    */
+
+    const std::array<sf::Keyboard::Key, 0x10> key_bindings = {
+        sf::Keyboard::Key::Num0,
+        sf::Keyboard::Key::Num1,
+        sf::Keyboard::Key::Num2,
+        sf::Keyboard::Key::Num3,
+        sf::Keyboard::Key::Num4,
+        sf::Keyboard::Key::Num5,
+        sf::Keyboard::Key::Num6,
+        sf::Keyboard::Key::Num7,
+        sf::Keyboard::Key::Num8,
+        sf::Keyboard::Key::Num9,
+        sf::Keyboard::Key::A   ,
+        sf::Keyboard::Key::B   ,
+        sf::Keyboard::Key::C   ,
+        sf::Keyboard::Key::D   ,
+        sf::Keyboard::Key::E   ,
+        sf::Keyboard::Key::F   ,
     };
     
     class Interpreter {

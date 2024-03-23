@@ -50,7 +50,7 @@ namespace CHIP8 {
         });
 
         double dt;
-        
+
         while(m_renderer.is_running()){
             dt = m_renderer.update();
             update_timers(dt);
@@ -102,10 +102,10 @@ namespace CHIP8 {
         auto found = std::find_if(
             key_bindings.begin(),
             key_bindings.end(),
-            [&](const auto& pair){return pair.second == keycode;}
+            [&](const auto& key){return key == keycode;}
         );
         if(found == key_bindings.end()) return;
-        m_state.regs[m_reg_store_key] = found->first;
+        m_state.regs[m_reg_store_key] = std::distance(key_bindings.begin(), found);
         m_halt_until_key = false;
         m_state.pc += 2;
     }
