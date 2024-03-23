@@ -25,6 +25,7 @@ Each step:
 
 #include <SFML/Graphics.hpp>
 #include "state.h"
+#include "renderer.h"
 
 namespace CHIP8 {
 
@@ -49,10 +50,8 @@ namespace CHIP8 {
     
     class Interpreter {
         State m_state;
-        sf::Image m_canvas;
-        sf::Texture m_texture;
-        sf::Sprite m_sprite;
-        sf::Clock m_clock;
+        Renderer m_renderer;
+
         std::default_random_engine m_rng;
         double m_timer;
         double m_timer_freq; // Hz
@@ -70,7 +69,6 @@ namespace CHIP8 {
 
         /* Retrieve memory of virtual machine */
         State& get_state() { return m_state; }
-        sf::Image& get_canvas() { return m_canvas; }
 
         /* Loads a CHIP8 program into memory from disk */
         void load_file(std::string filename);
@@ -94,16 +92,13 @@ namespace CHIP8 {
         */
         void draw_pixel(byte_t x, byte_t y, bool pixel);
 
-        /* Sets all the canvas pixels to black */
-        void clear_canvas();
-
         /* Returns a random integer between 0 and 255 */
         byte_t random_byte();
 
         /* Advance Delay and Sound timers at a rate of 60 Hz (by default) */
         void update_timers(double dt);
 
-        void check_halt_key(sf::Keyboard::Key keycode);
+        void check_halt_key(int keycode);
 
         /* Executes an opcode on the current state */
         void run_instruction(uint16_t code);

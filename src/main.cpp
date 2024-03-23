@@ -4,7 +4,7 @@
 #include "chip8/renderer.h"
 
 int main(int argc, const char* argv[]) {
-
+    
     if(argc != 2){
         std::cout << 
         "Supply filename" << std::endl;
