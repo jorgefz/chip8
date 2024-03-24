@@ -224,12 +224,12 @@ namespace CHIP8 {
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(is_key_pressed(vx)){
+                        if(is_key_pressed(m_state.regs[vx])){
                             m_state.advance();
                         }
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!is_key_pressed(vx)){
+                        if(!is_key_pressed(m_state.regs[vx])){
                             m_state.advance();
                         }
                         break;
@@ -240,6 +240,7 @@ namespace CHIP8 {
                     case 0x07:  m_state.regs[vx] = m_state.DTreg; break; //LD
                     case 0x0A: {// Halt execution until key press
                         bool key_pressed = false;
+                        std::cout << "Halt execution until key press" << std::endl;
                         for(uint16_t key = 0x0; key != 0x100; ++key){
                             if(is_key_pressed(key)){
                                 m_state.regs[vx] = byte_t(key);
@@ -260,9 +261,6 @@ namespace CHIP8 {
                     case 0x1E: m_state.Ireg += m_state.regs[vx]; break; // ADD
                     case 0x29: m_state.Ireg = m_state.regs[vx] * 5; break; // get digit
                     case 0x33: // BCD
-                        // m_state.ram[m_state.Ireg]   = (m_state.regs[vx]/100) % 10;
-                        // m_state.ram[m_state.Ireg+1] = (m_state.regs[vx]/10)  % 10;
-                        // m_state.ram[m_state.Ireg+2] =  m_state.regs[vx]      % 10;
                         m_state.ram[m_state.Ireg+2] =  m_state.regs[vx]      % 10;;
                         m_state.ram[m_state.Ireg+1] = (m_state.regs[vx]/10)  % 10;
                         m_state.ram[m_state.Ireg]   = (m_state.regs[vx]/100) % 10;
