@@ -51,7 +51,6 @@ namespace CHIP8 {
     class Interpreter {
         State m_state;
         Renderer m_renderer;
-
         std::default_random_engine m_rng;
         double m_timer;
         double m_timer_freq; // Hz
