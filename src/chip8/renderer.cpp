@@ -32,7 +32,7 @@ namespace CHIP8 {
     frame time in milliseconds */
     double Renderer::update(){
         if(!m_running){
-            throw std::runtime_error("Window has net been initialised");
+            throw std::runtime_error("Window has not been initialised");
         }
 
         sf::Event event;
@@ -40,8 +40,6 @@ namespace CHIP8 {
             if(event.type == sf::Event::Closed){
                 m_running = false;
                 m_window->close();
-            } else if (event.type == sf::Event::KeyPressed){
-                if(m_key_callback) m_key_callback(event.key.code);
             }
         }
         
@@ -49,6 +47,7 @@ namespace CHIP8 {
         m_texture.update(m_canvas);
         m_window->draw(m_sprite);
         m_window->display();
+        process_input();
 
         return m_clock.restart().asMilliseconds();
     }
@@ -99,5 +98,17 @@ namespace CHIP8 {
     void Renderer::set_theme(sf::Color primary, sf::Color secondary){
         m_theme.first  = primary;
         m_theme.second = secondary;
+    }
+
+    /* Query keypad for keys */
+    void Renderer::process_input(){
+        for(uint16_t key = 0x0; key != 0x10; ++key){
+            m_keypad[key] = sf::Keyboard::isKeyPressed(m_key_bindings[key]);
+        }
+    }
+
+    /* Returns true if a keypad key is being pressed */
+    bool Renderer::is_key_pressed(byte_t key){
+        return m_keypad[key];
     }
 }

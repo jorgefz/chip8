@@ -17,7 +17,6 @@ namespace CHIP8 {
         m_rng.seed(std::time(nullptr));
         m_timer = 0.0;
         m_timer_freq = 60.0; // Hz
-        m_halt_until_key = false;
     }
 
     void Interpreter::load_file(std::string filename){
@@ -44,18 +43,12 @@ namespace CHIP8 {
 
     void Interpreter::run(){
         // Initialise window
-        m_renderer.init();
-        m_renderer.set_key_callback([this](int keycode){
-            Interpreter::check_halt_key(keycode);
-        });
-
         double dt;
+        m_renderer.init();
 
         while(m_renderer.is_running()){
             dt = m_renderer.update();
             update_timers(dt);
-
-            if(m_halt_until_key) continue;
 
             uint16_t code = m_state.advance();
             run_instruction(code);
@@ -95,22 +88,6 @@ namespace CHIP8 {
         if(m_state.STreg != 0x0){
             m_state.STreg -= 1;
         }
-    }
-
-    void Interpreter::check_halt_key(int keycode){
-        auto found = std::find_if(
-            key_bindings.begin(),
-            key_bindings.end(),
-            [&](const auto& key){return key == keycode;}
-        );
-        if(found == key_bindings.end()) return;
-        m_state.regs[m_reg_store_key] = std::distance(key_bindings.begin(), found);
-        m_halt_until_key = false;
-        m_state.advance();
-    }
-
-    bool Interpreter::is_key_pressed(int keycode){
-        return sf::Keyboard::isKeyPressed(key_bindings.at(keycode));
     }
 
     void Interpreter::run_instruction(uint16_t code){
@@ -208,8 +185,8 @@ namespace CHIP8 {
                 m_state.regs[vx] = random_byte() & low_byte;
                 break;
             case 0xD: { // DRW
-                byte_t x = m_state.regs[vx]; // & (byte_t)Renderer::NATIVE_WIDTH;
-                byte_t y = m_state.regs[vy]; // & (byte_t)Renderer::NATIVE_HEIGHT;
+                byte_t x = m_state.regs[vx];
+                byte_t y = m_state.regs[vy];
                 m_state.regs[0xF] = 0;
                 if(m_state.Ireg + low_nib > RAM_SIZE){
                     debug_error(code,
@@ -224,12 +201,12 @@ namespace CHIP8 {
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(is_key_pressed(m_state.regs[vx])){
+                        if(m_renderer.is_key_pressed(m_state.regs[vx])){
                             m_state.advance();
                         }
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!is_key_pressed(m_state.regs[vx])){
+                        if(!m_renderer.is_key_pressed(m_state.regs[vx])){
                             m_state.advance();
                         }
                         break;
@@ -238,11 +215,11 @@ namespace CHIP8 {
             case 0xF: // Misc
                 switch(low_byte){
                     case 0x07:  m_state.regs[vx] = m_state.DTreg; break; //LD
-                    case 0x0A: {// Halt execution until key press
+                    case 0x0A: { // Halt execution until key press
                         bool key_pressed = false;
                         std::cout << "Halt execution until key press" << std::endl;
-                        for(uint16_t key = 0x0; key != 0x100; ++key){
-                            if(is_key_pressed(key)){
+                        for(uint16_t key = 0x0; key != 0x10; ++key){
+                            if(m_renderer.is_key_pressed(key)){
                                 m_state.regs[vx] = byte_t(key);
                                 key_pressed = true;
                                 break;
@@ -251,9 +228,6 @@ namespace CHIP8 {
                         if(!key_pressed){
                             m_state.pc -= 2; // Prevents program counter from advancing
                         }
-                        
-                        // m_halt_until_key = true;
-                        // m_reg_store_key = vx;
                         break;
                     }
                     case 0x15: m_state.DTreg = m_state.regs[vx]; break; // LD

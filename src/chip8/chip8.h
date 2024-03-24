@@ -28,25 +28,6 @@ Each step:
 #include "renderer.h"
 
 namespace CHIP8 {
-
-    const std::array<sf::Keyboard::Key, 0x10> key_bindings = {
-        sf::Keyboard::Key::Num0,
-        sf::Keyboard::Key::Num1,
-        sf::Keyboard::Key::Num2,
-        sf::Keyboard::Key::Num3,
-        sf::Keyboard::Key::Num4,
-        sf::Keyboard::Key::Num5,
-        sf::Keyboard::Key::Num6,
-        sf::Keyboard::Key::Num7,
-        sf::Keyboard::Key::Num8,
-        sf::Keyboard::Key::Num9,
-        sf::Keyboard::Key::A   ,
-        sf::Keyboard::Key::B   ,
-        sf::Keyboard::Key::C   ,
-        sf::Keyboard::Key::D   ,
-        sf::Keyboard::Key::E   ,
-        sf::Keyboard::Key::F   ,
-    };
     
     class Interpreter {
         State m_state;
@@ -54,8 +35,6 @@ namespace CHIP8 {
         std::default_random_engine m_rng;
         double m_timer;
         double m_timer_freq; // Hz
-        bool m_halt_until_key;
-        byte_t m_reg_store_key;
     
     public:
         static constexpr int NATIVE_WIDTH  = 64;
@@ -99,10 +78,6 @@ namespace CHIP8 {
 
         /* Advance Delay and Sound timers at a rate of 60 Hz (by default) */
         void update_timers(double dt);
-
-        void check_halt_key(int keycode);
-
-        bool is_key_pressed(int keycode);
 
     };
 
