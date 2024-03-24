@@ -47,7 +47,7 @@ namespace CHIP8 {
         Renderer()
             : m_running(false),
               m_theme(sf::Color::Black, sf::Color::White){
-            std::fill(m_keypad.begin(), m_keypad.end(), false);
+            m_keypad.fill(false);
         }
         
         ~Renderer() { }

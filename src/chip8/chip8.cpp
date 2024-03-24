@@ -60,7 +60,8 @@ namespace CHIP8 {
     }
 
     void Interpreter::draw_byte(byte_t x, byte_t y, byte_t byte){
-        m_renderer.draw_byte(x, y, byte);
+        bool drawn = m_renderer.draw_byte(x, y, byte);
+        if(drawn) m_state.regs[0xF] = 1;
     }
 
     void Interpreter::draw_pixel(uint8_t x, uint8_t y, bool pixel){
