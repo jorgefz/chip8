@@ -129,15 +129,17 @@ namespace CHIP8 {
                     m_renderer.clear_canvas();
                 } else if (code == 0x00EE){ // RET
                     assert(m_state.sp > 0);
-                    m_state.pc = m_state.stack[--m_state.sp];
+                    m_state.sp--;
+                    m_state.pc = m_state.stack[m_state.sp];
                 }
                 break;
-            case 0x1:
+            case 0x1: // JMP
                 m_state.pc = addr;
-                break; // JMP
+                break;
             case 0x2: // CALL
                 assert(m_state.sp <= STACK_SIZE);
-                m_state.stack[++m_state.sp-1] = m_state.pc + 2;
+                m_state.stack[m_state.sp] = m_state.pc;
+                m_state.sp++;
                 m_state.pc = addr;
                 break;
             case 0x3: // SE
@@ -178,6 +180,7 @@ namespace CHIP8 {
                     case 0x6: // SHR
                         m_state.regs[0xF] = (m_state.regs[nib3] & 0x1);
                         m_state.regs[nib3] >>= 1;
+                        // m_state.regs[nib2] = m_state.regs[nib3];
                         break;
                     case 0x7: // SUBN
                         m_state.regs[0xF] = (m_state.regs[nib2] > m_state.regs[nib3]);
@@ -186,6 +189,7 @@ namespace CHIP8 {
                     case 0xE: // SHL
                         m_state.regs[0xF] = (m_state.regs[nib3] & (1 << 7)) != 0x0;
                         m_state.regs[nib3] <<= 1;
+                        // m_state.regs[nib2] = m_state.regs[nib3];
                         break;
                 }
                 break;
