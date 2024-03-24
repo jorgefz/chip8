@@ -116,14 +116,14 @@ namespace CHIP8 {
     void Interpreter::run_instruction(uint16_t code){
         
         // Nibbles
-        byte_t nib1 = (code & 0x000F);
-        byte_t nib2 = (code & 0x00F0) >> 4;
-        byte_t nib3 = (code & 0x0F00) >> 8;
-        byte_t high_nibble = (code & 0xF000) >> 12;
+        byte_t low_nib  = (code & 0x000F);
+        byte_t vy       = (code & 0x00F0) >> 4;
+        byte_t vx       = (code & 0x0F00) >> 8;
+        byte_t high_nib = (code & 0xF000) >> 12;
         byte_t low_byte = (code & 0x00FF);
-        uint16_t addr = (code & 0x0FFF);
+        uint16_t addr   = (code & 0x0FFF);
         
-        switch(high_nibble) {
+        switch(high_nib) {
             case 0x0:
                 if(code == 0x00E0){ // CLS
                     m_renderer.clear_canvas();
@@ -143,58 +143,58 @@ namespace CHIP8 {
                 m_state.pc = addr;
                 break;
             case 0x3: // SE
-                if(m_state.regs[nib3] == low_byte){
+                if(m_state.regs[vx] == low_byte){
                     m_state.advance();
                 }
                 break;
             case 0x4: // SNE
-                if(m_state.regs[nib3] != low_byte){
+                if(m_state.regs[vx] != low_byte){
                     m_state.advance();
                 }
                 break;
             case 0x5: // SE
-                if(m_state.regs[nib2] == m_state.regs[nib3]){
+                if(m_state.regs[vy] == m_state.regs[vx]){
                     m_state.advance();
                 }
                 break;
             case 0x6: // LD
-                m_state.regs[nib3]  = low_byte;
+                m_state.regs[vx]  = low_byte;
                 break;
             case 0x7: // ADD
-                m_state.regs[nib3] += low_byte;
+                m_state.regs[vx] += low_byte;
                 break;
             case 0x8: // Bitwise/arithmetic operations
-                switch(nib1){
-                    case 0x0: m_state.regs[nib3]  = m_state.regs[nib2]; break; // LD
-                    case 0x1: m_state.regs[nib3] |= m_state.regs[nib2]; break; // OR
-                    case 0x2: m_state.regs[nib3] &= m_state.regs[nib2]; break; // AND
-                    case 0x3: m_state.regs[nib3] ^= m_state.regs[nib2]; break; // XOR
+                switch(low_nib){
+                    case 0x0: m_state.regs[vx]  = m_state.regs[vy]; break; // LD
+                    case 0x1: m_state.regs[vx] |= m_state.regs[vy]; break; // OR
+                    case 0x2: m_state.regs[vx] &= m_state.regs[vy]; break; // AND
+                    case 0x3: m_state.regs[vx] ^= m_state.regs[vy]; break; // XOR
                     case 0x4: // ADD
-                        m_state.regs[0xF] = (m_state.regs[nib3] + m_state.regs[nib2]) > 0xFF;
-                        m_state.regs[nib3] += m_state.regs[nib2];
+                        m_state.regs[0xF] = ((m_state.regs[vx] + m_state.regs[vy]) > 0xFF);
+                        m_state.regs[vx] += m_state.regs[vy];
                         break;
                     case 0x5: // SUB (VF = NO BORROW)
-                        m_state.regs[0xF] = !(m_state.regs[nib2] > m_state.regs[nib3]);
-                        m_state.regs[nib3] -= m_state.regs[nib2];
+                        m_state.regs[0xF] = (m_state.regs[vx] > m_state.regs[vy]);
+                        m_state.regs[vx] -= m_state.regs[vy];
                         break;
                     case 0x6: // SHR
-                        m_state.regs[0xF] = (m_state.regs[nib3] & 0x1);
-                        m_state.regs[nib3] >>= 1;
-                        // m_state.regs[nib2] = m_state.regs[nib3];
+                        m_state.regs[0xF] = (m_state.regs[vx] & 0x1);
+                        m_state.regs[vx] >>= 1;
+                        // m_state.regs[vy] = m_state.regs[vx];
                         break;
                     case 0x7: // SUBN
-                        m_state.regs[0xF] = (m_state.regs[nib2] > m_state.regs[nib3]);
-                        m_state.regs[nib3] = m_state.regs[nib2] - m_state.regs[nib3];
+                        m_state.regs[0xF] = (m_state.regs[vy] > m_state.regs[vx]);
+                        m_state.regs[vx] = m_state.regs[vy] - m_state.regs[vx];
                         break;
                     case 0xE: // SHL
-                        m_state.regs[0xF] = (m_state.regs[nib3] & (1 << 7)) != 0x0;
-                        m_state.regs[nib3] <<= 1;
-                        // m_state.regs[nib2] = m_state.regs[nib3];
+                        m_state.regs[0xF] = (m_state.regs[vx] & 0x80) >> 7;
+                        m_state.regs[vx] <<= 1;
+                        // m_state.regs[vy] = m_state.regs[vx];
                         break;
                 }
                 break;
             case 0x9: // SNE
-                if(m_state.regs[nib2] != m_state.regs[nib3]){
+                if(m_state.regs[vy] != m_state.regs[vx]){
                     m_state.advance();
                 }
                 break;
@@ -205,17 +205,17 @@ namespace CHIP8 {
                 m_state.pc = addr + m_state.regs[0x0];
                 break;
             case 0xC: // RND
-                m_state.regs[nib3] = random_byte() & low_byte;
+                m_state.regs[vx] = random_byte() & low_byte;
                 break;
             case 0xD: { // DRW
-                byte_t x = m_state.regs[nib3];
-                byte_t y = m_state.regs[nib2];
+                byte_t x = m_state.regs[vx]; // & (byte_t)Renderer::NATIVE_WIDTH;
+                byte_t y = m_state.regs[vy]; // & (byte_t)Renderer::NATIVE_HEIGHT;
                 m_state.regs[0xF] = 0;
-                if(m_state.Ireg + nib1 > RAM_SIZE){
+                if(m_state.Ireg + low_nib > RAM_SIZE){
                     debug_error(code,
                         "RAM overflow. I-register out of bounds when retrieving sprite");
                 }
-                for(byte_t i = 0; i != nib1; ++i){
+                for(byte_t i = 0; i != low_nib; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
                     draw_byte(x, y + i, sprite_line);
                 }
@@ -224,12 +224,12 @@ namespace CHIP8 {
             case 0xE: // Key input
                 switch(low_byte){
                     case 0x9E: // Skip if key pressed
-                        if(is_key_pressed(nib3)){
+                        if(is_key_pressed(vx)){
                             m_state.advance();
                         }
                         break;
                     case 0xA1: // Skip if key not pressed
-                        if(!is_key_pressed(nib3)){
+                        if(!is_key_pressed(vx)){
                             m_state.advance();
                         }
                         break;
@@ -237,34 +237,50 @@ namespace CHIP8 {
                 break;
             case 0xF: // Misc
                 switch(low_byte){
-                    case 0x07:  m_state.regs[nib3] = m_state.DTreg; break; //LD
-                    case 0x0A: // Halt execution until key press
-                        m_halt_until_key = true;
-                        m_reg_store_key = nib3;
+                    case 0x07:  m_state.regs[vx] = m_state.DTreg; break; //LD
+                    case 0x0A: {// Halt execution until key press
+                        bool key_pressed = false;
+                        for(uint16_t key = 0x0; key != 0x100; ++key){
+                            if(is_key_pressed(key)){
+                                m_state.regs[vx] = byte_t(key);
+                                key_pressed = true;
+                                break;
+                            }
+                        }
+                        if(!key_pressed){
+                            m_state.pc -= 2; // Prevents program counter from advancing
+                        }
+                        
+                        // m_halt_until_key = true;
+                        // m_reg_store_key = vx;
                         break;
-                    case 0x15: m_state.DTreg = m_state.regs[nib3]; break; // LD
-                    case 0x18: m_state.STreg = m_state.regs[nib3]; break; // LD
-                    case 0x1E: m_state.Ireg += m_state.regs[nib3]; break; // ADD
-                    case 0x29: m_state.Ireg = m_state.regs[nib3] * 5; break; // get digit
+                    }
+                    case 0x15: m_state.DTreg = m_state.regs[vx]; break; // LD
+                    case 0x18: m_state.STreg = m_state.regs[vx]; break; // LD
+                    case 0x1E: m_state.Ireg += m_state.regs[vx]; break; // ADD
+                    case 0x29: m_state.Ireg = m_state.regs[vx] * 5; break; // get digit
                     case 0x33: // BCD
-                        m_state.ram[m_state.Ireg]   = (m_state.regs[nib3]/100) % 10;
-                        m_state.ram[m_state.Ireg+1] = (m_state.regs[nib3]/10)  % 10;
-                        m_state.ram[m_state.Ireg+2] =  m_state.regs[nib3]      % 10;
+                        // m_state.ram[m_state.Ireg]   = (m_state.regs[vx]/100) % 10;
+                        // m_state.ram[m_state.Ireg+1] = (m_state.regs[vx]/10)  % 10;
+                        // m_state.ram[m_state.Ireg+2] =  m_state.regs[vx]      % 10;
+                        m_state.ram[m_state.Ireg+2] =  m_state.regs[vx]      % 10;;
+                        m_state.ram[m_state.Ireg+1] = (m_state.regs[vx]/10)  % 10;
+                        m_state.ram[m_state.Ireg]   = (m_state.regs[vx]/100) % 10;
                         break;
                     case 0x55: // LD
-                        for(byte_t i = 0x0; i != nib3 + 1; ++i){
+                        for(uint16_t i = 0x0; i <= vx; ++i){
                             m_state.ram[m_state.Ireg + i] = m_state.regs[i];
                         }
                         break;
                     case 0x65: // LD
-                        for(byte_t i = 0x0; i != 0x10; ++i){
+                        for(uint16_t i = 0x0; i <= vx; ++i){
                             m_state.regs[i] = m_state.ram[m_state.Ireg + i];
                         }
                         break;
                 }
                 break;
             default:
-                std::cout << "Invalid opcode " << std::hex << high_nibble << std::endl;
+                std::cout << "Invalid opcode " << std::hex << high_nib << std::endl;
                 exit(0);
         }
     }
