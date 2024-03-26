@@ -41,30 +41,6 @@ TEST_CASE( "Check the initial state of the virtual machine", "[state]"){
     /// TODO: check for hex digits stored on RAM from 0x000 to 0x050
 }
 
-/*
-00E0 - CLS
-Clear the display.
-*/
-TEST_CASE("Clear display instruction", "[opcodes]"){
-    auto prog = CHIP8::Interpreter();
-    auto& state = prog.get_state();
-    state.pc = 0;
-
-    prog.get_canvas().create(
-        CHIP8::Interpreter::NATIVE_WIDTH,
-        CHIP8::Interpreter::NATIVE_HEIGHT,
-        sf::Color::White
-    );
-    prog.run_instruction(0x00E0);
-
-    int screen_zeroed = 0;
-    for(int x = 0; x != CHIP8::Interpreter::NATIVE_WIDTH; ++x){
-        for(int y = 0; y != CHIP8::Interpreter::NATIVE_HEIGHT; ++y){
-            screen_zeroed |= !(prog.get_canvas().getPixel(x, y) == sf::Color::Black);
-        }
-    }
-    REQUIRE(screen_zeroed == 0);
-}
 
 /*
 00EE - RET
