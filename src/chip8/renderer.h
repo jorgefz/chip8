@@ -55,9 +55,6 @@ namespace CHIP8 {
         /* Creates a window */
         void init();
 
-        // Only for testing
-        sf::Image& get_canvas() { return m_canvas; }
-
         /* True if the window is open */
         bool is_running();
 
