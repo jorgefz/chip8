@@ -1,12 +1,6 @@
 #include "chip8.h"
 #include <sstream>
 
-static void debug_error(uint16_t code, std::string msg){
-    std::stringstream error_msg;
-    error_msg << std::hex << "[0x"<<code<<"]" << msg << std::endl;
-    throw std::runtime_error(error_msg.str().c_str());
-}
-
 namespace CHIP8 {
 
     Interpreter::Interpreter(){
@@ -51,10 +45,6 @@ namespace CHIP8 {
 
             uint16_t code = m_state.advance();
             run_instruction(code);
-
-            if(m_state.pc >= CHIP8::RAM_SIZE){
-                debug_error(code, "RAM overflow");
-            }
         }
     }
 
@@ -193,8 +183,7 @@ namespace CHIP8 {
                 byte_t y = m_state.regs[vy];
                 m_state.regs[0xF] = 0;
                 if(m_state.Ireg + low_nib > RAM_SIZE){
-                    debug_error(code,
-                        "RAM overflow. I-register out of bounds when retrieving sprite");
+                    throw std::runtime_error("RAM overflow when retrieving font sprite");
                 }
                 for(byte_t i = 0; i != low_nib; ++i){
                     byte_t sprite_line = m_state.ram[m_state.Ireg + i];
