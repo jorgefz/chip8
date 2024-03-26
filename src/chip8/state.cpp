@@ -28,10 +28,9 @@ namespace CHIP8 {
 
     /* Jumps to the specified address in RAM */
     void State::jump(uint16_t address){
-        // Check RAM overflow and integer overflow
-        if(pc + address >= CHIP8::RAM_SIZE || pc + address < pc){
+        if(address >= CHIP8::RAM_SIZE){
             throw std::runtime_error("RAM overflow");
         }
-        pc += address;
+        pc = address;
     }
 }
