@@ -1,5 +1,4 @@
 #include "chip8.h"
-#include <cassert>
 #include <sstream>
 
 static void debug_error(uint16_t code, std::string msg){
@@ -106,7 +105,9 @@ namespace CHIP8 {
                 if(code == 0x00E0){ // CLS
                     m_renderer.clear_canvas();
                 } else if (code == 0x00EE){ // RET
-                    assert(m_state.sp > 0);
+                    if(m_state.sp == 0){
+                        throw std::runtime_error("No subroutine to return from");
+                    }
                     m_state.sp--;
                     m_state.pc = m_state.stack[m_state.sp];
                 }
@@ -115,7 +116,9 @@ namespace CHIP8 {
                 m_state.pc = addr;
                 break;
             case 0x2: // CALL
-                assert(m_state.sp <= STACK_SIZE);
+                if(m_state.sp + 1 == STACK_SIZE){
+                    throw std::runtime_error("Stack overflow: subroutine call limit reached");
+                }
                 m_state.stack[m_state.sp] = m_state.pc;
                 m_state.sp++;
                 m_state.pc = addr;
