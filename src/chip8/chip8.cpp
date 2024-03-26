@@ -103,7 +103,7 @@ namespace CHIP8 {
                 }
                 break;
             case 0x1: // JMP
-                m_state.pc = addr;
+                m_state.jump(addr);
                 break;
             case 0x2: // CALL
                 if(m_state.sp + 1 == STACK_SIZE){
@@ -173,7 +173,7 @@ namespace CHIP8 {
                 m_state.Ireg = addr;
                 break;
             case 0xB: // JMP
-                m_state.pc = addr + m_state.regs[0x0];
+                m_state.jump(addr + m_state.regs[0]);
                 break;
             case 0xC: // RND
                 m_state.regs[vx] = random_byte() & low_byte;
