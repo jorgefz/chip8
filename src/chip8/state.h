@@ -64,6 +64,9 @@ namespace CHIP8 {
 
         /* Moves the program counter and returns the last opcode */
         uint16_t advance();
+
+        /* Jumps to the specified address in RAM */
+        void jump(uint16_t address);
     };
 
 }
