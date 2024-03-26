@@ -546,11 +546,12 @@ TEST_CASE("Jump to V0 plus offset instruction", "[opcodes]"){
 
     // RAM overflow
     state.regs[0x0] = 0xFF;
-    bool exception_thrown = true;
+    bool exception_thrown = false;
     try {
-        prog.run_instruction(0xBFFF);
-        exception_thrown = false;
-    } catch (std::exception& e){ }
+        prog.run_instruction(0xBFFF); // Jumps to 0xFF + 0xFFF
+    } catch (std::exception& e){
+        exception_thrown = true;
+    }
     REQUIRE(exception_thrown);
 }
 
