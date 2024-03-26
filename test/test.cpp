@@ -8,7 +8,7 @@ after being reset (ram, stack, and registers).
 ALl should be zeroed except for RAM, which should also
 store hex digits at 0x0 - 0x050.
 */
-TEST_CASE( "Check the initial state of the virtual machine", "[state]"){
+TEST_CASE("Check the initial state of the virtual machine", "[state]"){
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
 
@@ -42,15 +42,34 @@ TEST_CASE( "Check the initial state of the virtual machine", "[state]"){
 }
 
 
-/*
-00EE - RET
-The interpreter sets the program counter to
-the address at the top of the stack,
-then subtracts 1 from the stack pointer.
-Should throw an error if the stack pointer
-is at the bottom of the stack.
-*/
-TEST_CASE("Subroutine return instruction", "[opcodes]"){
+TEST_CASE("0x2nnn - Call subroutine", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
+    state.pc = 0x123;
+    prog.run_instruction(0x2FFF);
+
+    REQUIRE(state.pc == 0xFFF);
+    REQUIRE(state.sp == 0x1);
+    REQUIRE(state.stack[0] == 0x123);
+}
+
+
+TEST_CASE("0x2nnn - Call subroutine when stack is full", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
+    state.sp = CHIP8::STACK_SIZE - 1;
+    bool exception_thrown = true;
+    try {
+       prog.run_instruction(0x2FFF); // Call (0x2) to address 0xFFF
+       exception_thrown = false;
+    } catch (std::exception& e) { }
+    REQUIRE(exception_thrown);
+}
+
+
+TEST_CASE("0x00EE - Return from subroutine", "[opcodes]"){
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
     state.pc = 0;
@@ -62,161 +81,170 @@ TEST_CASE("Subroutine return instruction", "[opcodes]"){
 
     REQUIRE(state.pc == 0xab);
     REQUIRE(state.sp == 0);
+}
 
-    // Ensure it fails when program is not in subroutine
-    state.reset();
+
+TEST_CASE("0x00EE - Return from subroutine when no subroutine was called", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
     state.sp = 0;
     bool exception_thrown = true;
     try {
-        prog.run_instruction(0x00EE);
+        prog.run_instruction(0x00EE); // Return (0x00EE)
         exception_thrown = false;
     } catch (const std::exception& e) { }
+
     REQUIRE(exception_thrown);
 }
 
-/*
-1nnn - JMP nnn
-The interpreter sets the program counter to nnn.
-No need for bounds checking because 0xNNN can only store
-values between 0x000 and 0xFFF, all of which are valid RAM addresses.
-*/
-TEST_CASE("Jump instruction", "[opcodes]"){
+
+TEST_CASE("0x1nnn - Jump to address in RAM", "[opcodes]"){
+    // No need to do bounds checking because address can
+    // only store values up to 0xFFF, which is the size of RAM.
+
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
-    state.pc = 0;
 
-    prog.run_instruction(0x1123);
+    prog.run_instruction(0x1123); // Jump (0x1) to address 0x123
     REQUIRE(state.pc == 0x123);
-    
-    // Beginning of ram
+}
+
+
+TEST_CASE("0x1nnn - Jump to address at the beginning of RAM", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
     prog.run_instruction(0x1000);
     REQUIRE(state.pc == 0);
+}
 
-    // End of ram
+
+TEST_CASE("0x1nnn - Jump to address at the last end of RAM", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
     prog.run_instruction(0x1FFF);
     REQUIRE(state.pc == 0xFFF);
 }
 
-/*
-2nnn - CALL nnn
-The interpreter increments the stack pointer,
-then puts the current PC on the top of the stack.
-The PC is then set to nnn.
-*/
-TEST_CASE("Subroutine call instruction", "[opcodes]"){
+
+TEST_CASE("0x3xkk - Skip the next instruction when a register equals a value", "[opcodes]"){
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
-    state.pc = 0;
-
-    state.pc = 0x123;
-    prog.run_instruction(0x2FFF);
-
-    REQUIRE(state.pc == 0xFFF);
-    REQUIRE(state.sp == 0x1);
-    REQUIRE(state.stack[0] == 0x123);
     
-    // Program fails when stack is full
-    state.sp = CHIP8::STACK_SIZE;
+    state.pc = 0;
+    state.regs[0xa] = 0xbc;
+    prog.run_instruction(0x3abc); // Skip if (0x3) register 0xa equals 0xbc
+    REQUIRE(state.pc == 0x2); // Program counter should have skipped to the next instruction
+}
+
+
+TEST_CASE("0x3xkk - Do not skip the next instruction when a register does not equal a value", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
+    state.pc = 0;
+    state.regs[0xa] = 0xaa;
+    prog.run_instruction(0x3abb + 1); // Skip if (0x3) register 0xa equals 0xbb
+    REQUIRE(state.pc == 0x0); // Instruction won't be skipped because the register does not equal that value
+}
+
+
+TEST_CASE("0x3xkk - Conditionally skipping an instruction leads to RAM overflow", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
+    state.pc = CHIP8::RAM_SIZE - 2;
+    state.regs[0x0] = 0x0;
+    bool exception_thrown = false;
+    try {
+        prog.run_instruction(0x3000); // Skip if (0x3) register 0x0 equals 0x0
+    } catch (std::exception& e) {
+        exception_thrown = true;
+    }
+    REQUIRE(exception_thrown);
+    REQUIRE(state.pc == CHIP8::RAM_SIZE - 2);
+}
+
+
+TEST_CASE("0x4xkk - Skip instruction when a register does not equal a value", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    
+    state.pc = 0;
+    state.regs[0xa] = 0x0;
+    prog.run_instruction(0x4aff); // Skip if not (0x4) register 0xa equals 0xff
+    REQUIRE(state.pc == 2); // Should skip as register is equal to that value
+}
+
+
+TEST_CASE("0x4xkk - Do not skip instruction when a register equals a value", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    
+    state.pc = 0;
+    state.regs[0xa] = 0xbc;
+    prog.run_instruction(0x4abc); // Skip if not (0x4) register 0xa equals 0xbc
+    REQUIRE(state.pc == 0); // Should not skip as register equals that value
+}
+
+
+TEST_CASE("0x4xkk - Skipping an instruction leads to RAM overflow", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+    
+    state.pc = 0xFFE;
+    state.regs[0xA] = 0x0;
     bool exception_thrown = true;
     try {
-       prog.run_instruction(0x2FFF);
-       exception_thrown = false;
+        prog.run_instruction(0x4A01); // Skip if register 0xA does not equal 0x01
+        exception_thrown = false;
     } catch (std::exception& e) { }
     REQUIRE(exception_thrown);
+    REQUIRE(state.pc == 0xFFE);
 }
 
-/*
-3xkk - SE Vx, kk
-The interpreter compares register Vx to kk,
-and if they are equal, increments the program counter by 2.
-Here, we need to check for RAM overflow.
-*/
-TEST_CASE("Jump if register equals byte instruction", "[opcodes]"){
+
+TEST_CASE("0x5xy0 - Skip instruction if two registers are equal", "[opcodes]"){
     auto prog = CHIP8::Interpreter();
     auto& state = prog.get_state();
-    state.pc = 0;
-
-    state.regs[0xa] = 0xbc;
-    prog.run_instruction(0x3abc);
-    REQUIRE(state.pc == 0x2);
     
     state.pc = 0;
-    prog.run_instruction(0x3abc + 1);
-    REQUIRE(state.pc == 0x0);
-
-    // RAM overflow
-    state.reset();
-    state.pc = 0xFFF;
-    bool exception_thrown = true;
-    try {
-        prog.run_instruction(0x3000);
-        exception_thrown = false;
-    } catch (std::exception& e) { }
-    REQUIRE((exception_thrown && state.pc <= 0xFFF));
-}
-
-/*
-4xkk - SNE Vx, byte
-The interpreter compares register Vx to kk, and if they are not equal,
-increments the program counter by 2.
-*/
-TEST_CASE("Jump if register does not equal byte instruction", "[opcodes]"){
-    auto prog = CHIP8::Interpreter();
-    auto& state = prog.get_state();
-    state.pc = 0;
-
-    state.regs[0xa] = 0xbc;
-    prog.run_instruction(0x4abc);
-    REQUIRE(state.pc == 0);
-
-    state.pc = 0;
-    prog.run_instruction(0x4abc + 1);
-    REQUIRE(state.pc == 0x2);
-
-    // RAM overflow
-    state.reset();
-    state.pc = 0xFFF;
-    bool exception_thrown = true;
-    try {
-        prog.run_instruction(0x3000);
-        exception_thrown = false;
-    } catch (std::exception& e) { }
-    REQUIRE((exception_thrown && state.pc <= 0xFFF));
-}
-
-
-/*
-5xy0 - SE Vx, Vy
-Skip next instruction if Vx = Vy.
-The interpreter compares register Vx to register Vy,
-and if they are equal, increments the program counter by 2.
-*/
-TEST_CASE("Jump if registers equal instruction", "[opcodes]"){
-    auto prog = CHIP8::Interpreter();
-    auto& state = prog.get_state();
-    state.pc = 0;
-
     state.regs[0xa] = 0xcc;
     state.regs[0xb] = 0xcc;
-    prog.run_instruction(0x5ab0);
-    REQUIRE(state.pc == 0x2);
+    prog.run_instruction(0x5ab0); // Skip if (0x5) registers 0xA and 0xB are equal
+    REQUIRE(state.pc == 2);
+}
+
+
+TEST_CASE("0x5xy0 - Do not skip instruction if two registers are not equal", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
 
     state.pc = 0;
     state.regs[0xa] = 0x00;
     state.regs[0xb] = 0x01;
-    prog.run_instruction(0x5ab0);
-    REQUIRE(state.pc == 0x0);
-    
-    // RAM overflow
+    prog.run_instruction(0x5ab0); // Skip if (0x5) registers 0xA and 0xB are equal
+    REQUIRE(state.pc == 0);
+}
+
+
+TEST_CASE("0x5xy0 - Skipping an instruction leads to RAM overflow", "[opcodes]"){
+    auto prog = CHIP8::Interpreter();
+    auto& state = prog.get_state();
+
     state.reset();
-    state.pc = 0xFFF;
-    state.regs[0] = 0;
-    bool exception_thrown = true;
+    state.pc = 0xFFE;
+    state.regs[0] = 0x0;
+    bool exception_thrown = false;
     try {
-        prog.run_instruction(0x5000);
-        exception_thrown = false;
-    } catch (std::exception& e) { }
-    REQUIRE((exception_thrown && state.pc <= 0xFFF));
+        prog.run_instruction(0x5000); // Skip if (0x5) register 0x0 equals itself
+    } catch (std::exception& e) {
+        exception_thrown = true;
+    }
+    REQUIRE(exception_thrown);
+    REQUIRE(state.pc == 0xFFE);
 }
 
 
