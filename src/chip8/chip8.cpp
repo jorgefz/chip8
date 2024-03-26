@@ -218,7 +218,6 @@ namespace CHIP8 {
                     case 0x07:  m_state.regs[vx] = m_state.DTreg; break; //LD
                     case 0x0A: { // Halt execution until key press
                         bool key_pressed = false;
-                        std::cout << "Halt execution until key press" << std::endl;
                         for(uint16_t key = 0x0; key != 0x10; ++key){
                             if(m_renderer.is_key_pressed(key)){
                                 m_state.regs[vx] = byte_t(key);
