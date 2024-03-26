@@ -1,4 +1,5 @@
 #include "state.h"
+#include <stdexcept>
 
 namespace CHIP8 {
     
@@ -17,6 +18,9 @@ namespace CHIP8 {
     }
 
     uint16_t State::advance(){
+        if(pc + 2 == RAM_SIZE){
+            throw std::runtime_error("RAM overflow");
+        }
         uint16_t code = (ram[pc] << 8) | ram[pc+1];
         pc += 2;
         return code;

@@ -10,7 +10,7 @@ namespace CHIP8 {
     
     typedef uint8_t byte_t;
 
-    static constexpr uint16_t RAM_SIZE        = 0xFFF+1;
+    static constexpr uint16_t RAM_SIZE        = 0x1000;
     static constexpr uint16_t RAM_PROG_OFFSET = 0x200;
     static constexpr byte_t   STACK_SIZE      = 16;
     static constexpr byte_t   REGISTER_NUM    = 16;
